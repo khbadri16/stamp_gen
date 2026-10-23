@@ -50,7 +50,10 @@
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 28px 48px;
   }
-  header { margin-bottom: 22px; }
+  header { margin-bottom: 22px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: baseline; }
+  header .sub { grid-column: 1 / -1; }
+  .logout { font-size: 0.82rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .logout:hover { color: var(--accent); }
   h1 {
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.1rem);
@@ -253,6 +256,7 @@
 <div class="wrap">
   <header>
     <h1>Générateur de Cachets</h1>
+    <a class="logout" href="/logout">Se déconnecter</a>
     <p class="sub">Cachet rectangulaire, ovale, rond, sans cadre, ou griffe du gérant. Rendu encre naturel, texte arabe et latin. Place les cachets sur une page A4 et télécharge-la en PDF, ou chaque cachet en PNG transparent.</p>
   </header>
 
