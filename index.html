@@ -1,0 +1,1961 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#ece8df" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1813" media="(prefers-color-scheme: dark)">
+<title>Générateur de Cachets</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='27' fill='none' stroke='%2324318f' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='%2324318f' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Arimo:wght@400;700&family=Cairo:wght@600;800&family=Lalezar&family=Montserrat:wght@500;700&family=Noto+Naskh+Arabic:wght@500;700&family=Oswald:wght@400;600&family=Tinos:wght@400;700&display=swap">
+<style>
+  /* Layout: controls on the left, the stamp on a sheet of paper on the right; stacks on phones. */
+  :root {
+    --bg: #ece8df;
+    --panel: #f7f5ef;
+    --ink: #22201b;
+    --muted: #6d675b;
+    --line: #d8d2c4;
+    --accent: #24318f;
+    --field: #fffdf8;
+    --focus: #b45309;
+    --paper: #fdfcf8;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a1813; --panel: #242019; --ink: #efe9dc; --muted: #a39b89;
+      --line: #39342a; --accent: #8e9cff; --field: #1f1c15; --focus: #f0a450;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1813; --panel: #242019; --ink: #efe9dc; --muted: #a39b89;
+    --line: #39342a; --accent: #8e9cff; --field: #1f1c15; --focus: #f0a450;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Noto Sans Arabic", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 1120px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 28px 48px;
+  }
+  header { margin-bottom: 22px; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.1rem);
+    margin: 0 0 4px; letter-spacing: -0.01em; text-wrap: balance;
+  }
+  .sub { color: var(--muted); font-size: 0.92rem; margin: 0; max-width: 64ch; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 24px; align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  fieldset { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
+  fieldset:last-child { margin-bottom: 0; }
+  legend {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted);
+    font-weight: 700; padding: 0 0 10px; width: 100%; border-bottom: 1px solid var(--line); margin-bottom: 14px;
+  }
+  label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .row > .f { flex: 1 1 150px; min-width: 0; }
+  .f { margin-bottom: 14px; }
+  input[type=text], select {
+    width: 100%; font: inherit; font-size: 0.9rem; padding: 8px 10px;
+    background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+  }
+  input[type=text][dir=rtl] { font-size: 1rem; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .hint { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+  output { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips label {
+    flex: 1 1 auto; text-align: center; margin: 0; border: 1px solid var(--line); border-radius: 6px;
+    padding: 7px 10px; cursor: pointer; font-size: 0.8rem; background: var(--field);
+    transition: border-color .12s, color .12s, background-color .12s; user-select: none;
+  }
+  .chips input { position: absolute; opacity: 0; pointer-events: none; }
+  .chips label:has(input:checked) { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .chips label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .chips label:has(input:disabled) { opacity: .42; cursor: not-allowed; }
+
+  /* centre lines of round/oval stamps: tick + reorder */
+  .order { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--field); }
+  .order li { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-top: 1px solid var(--line); }
+  .order li:first-child { border-top: 0; }
+  .order .toggle { flex: 1; margin: 0; padding: 3px 0; }
+  .order li:has(input:disabled) .toggle { opacity: .42; cursor: not-allowed; }
+  .order .mv { padding: 2px 9px; font-size: .9rem; line-height: 1.3; }
+  .order .mv:disabled { opacity: .25; cursor: default; }
+  .shape-chips label { flex: 1 1 auto; padding: 7px 8px; }
+
+  .toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer; margin: 2px 0 12px; }
+  .toggle input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+
+  .swatches { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sw {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--panel);
+    box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0;
+  }
+  .sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
+  input[type=color] {
+    width: 44px; height: 32px; padding: 2px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--field); cursor: pointer;
+  }
+
+  .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 14px; }
+  /* the preview sits on a sheet of paper in both themes: that is where the stamp will live */
+  .paper {
+    display: grid; place-items: center; min-height: 280px; padding: 26px;
+    background: radial-gradient(120% 90% at 30% 20%, #ffffff 0%, var(--paper) 55%, #f3f0e7 100%);
+    border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 10px 30px -18px rgba(40,30,10,.35);
+  }
+  canvas { max-width: 100%; height: auto; display: block; }
+  #viewStamp .paper { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }   /* lets the canvas limit below resolve */
+  #viewStamp .paper canvas { max-height: 100%; object-fit: contain; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+  .tabs button {     /* white tabs with dark text: readable in light and dark mode */
+    background: #fff; color: #6d675b; border: 1px solid #ddd6c8; border-bottom: 0;
+    border-radius: 7px 7px 0 0; padding: 8px 16px; margin-bottom: -1px; font-weight: 700;
+  }
+  .tabs button[aria-selected="true"] { color: #1d1b17; box-shadow: inset 0 -3px 0 var(--accent); }
+  .tabs button:active { transform: none; }
+
+  /* the A4 sheet: real proportions, sized to fit the screen height */
+  .sheet {
+    position: relative; margin: 0 auto; overflow: hidden;
+    width: min(100%, max(250px, calc((100vh - 300px) * 0.7071)));   /* whole column stays on screen */
+    aspect-ratio: 210 / 297; background: #fff;
+    border: 1px solid #ddd6c8; border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 14px 34px -18px rgba(40,30,10,.5);
+  }
+  .sheet::before {   /* 15 mm margin guide — not printed */
+    content: ""; position: absolute; left: 7.14%; right: 7.14%; top: 5.05%; bottom: 5.05%;
+    border: 1px dashed #ece7dc; pointer-events: none;
+  }
+  .sheet .item {   /* the padding is an invisible, finger-sized grab area around the stamp */
+    position: absolute; max-width: none; box-sizing: content-box; padding: 10px; margin: -10px;
+    cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .sheet .item:active { cursor: grabbing; }
+  .sheet .item:focus { outline: none; }
+  .sheet .item.sel { outline: 1.5px dashed var(--accent); outline-offset: -7px; }
+  .sheet .item.sel:focus-visible { outline-style: solid; }
+  .page-tools { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+  #posOut { margin-top: 6px; }
+  .page-tools .f { flex: 1 1 180px; margin: 0; }
+  .page-tools button { padding: 8px 12px; }
+  .nudge { display: flex; gap: 4px; }
+  .nudge button { padding: 6px 0; min-width: 38px; }
+  .form-end { display: none; margin-top: 20px; text-align: center; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; font-size: 0.9rem; padding: 10px 16px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button:not(.ghost):not(.sw):not(.tab) { color: #12131f; } }
+  :root[data-theme="dark"] button:not(.ghost):not(.sw):not(.tab) { color: #12131f; }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button:active { transform: translateY(1px); }
+  .note { font-size: 0.76rem; color: var(--muted); margin: 0; }
+
+  /* touch screens of any size (tablets, touch laptops): finger-sized controls */
+  @media (pointer: coarse) {
+    input[type=range] { height: 34px; }
+    .toggle { min-height: 36px; }
+    .toggle input { width: 20px; height: 20px; }
+    .sw { width: 38px; height: 38px; }
+    .chips label { padding: 10px; }
+    .order .mv { min-width: 42px; min-height: 38px; }
+    input[type=text], select { min-height: 42px; }
+    input[type=color] { height: 40px; }
+  }
+  /* short, wide windows (phone in landscape): compact sticky stamp; the A4 sheet scrolls */
+  @media (max-height: 560px) and (min-width: 821px) {
+    .wrap { padding-block: 10px 30px; }
+    header { margin-bottom: 8px; }
+    .sub { display: none; }
+    .stage { top: 6px; gap: 8px; }
+    #viewStamp .paper { min-height: 0; height: max(110px, calc(100vh - 168px)); height: max(110px, calc(100dvh - 168px)); padding: 10px; }
+    .stage.page-mode { position: static; }
+  }
+
+  /* ===== phones and small tablets ===== */
+  @media (max-width: 820px) {
+    html { scroll-padding-top: calc(var(--stageH, 0px) + 10px); }   /* focused fields never hide under the stamp */
+    .wrap { padding-block: 12px 40px; }
+    header { margin-bottom: 10px; }
+    h1 { font-size: 1.3rem; }
+    .sub { font-size: .8rem; }
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    /* the stamp stays at the top while the form scrolls underneath */
+    .grid > .stage {
+      order: -1; position: sticky; top: 0; z-index: 20; gap: 8px;
+      margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+      margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+      padding: 8px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+      background: var(--bg); box-shadow: 0 8px 14px -12px rgba(0,0,0,.45);
+    }
+    .grid > .stage.page-mode { position: static; box-shadow: none; }   /* the A4 sheet needs the room */
+    .tabs button { flex: 1 1 0; min-height: 42px; padding: 8px 10px; }
+    #viewStamp .paper { min-height: 0; height: clamp(130px, 25vh, 280px); height: clamp(130px, 25dvh, 280px); padding: 10px; }
+    .actions { gap: 6px; flex-wrap: nowrap; }
+    .actions button {
+      flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 8px; font-size: .86rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .lg, #reset { display: none; }
+    .form-end { display: block; }
+    /* while typing (keyboard open), only the stamp stays in the sticky area */
+    body.editing .grid > .stage:not(.page-mode) .tabs,
+    body.editing .grid > .stage:not(.page-mode) .actions { display: none; }
+    body.editing #viewStamp .paper { height: clamp(96px, 20vh, 200px); height: clamp(96px, 20dvh, 200px); }
+    /* messages appear as a small toast */
+    #status {
+      position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+      z-index: 60; width: max-content; max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: 18px;
+      background: #22201b; color: #fff; font-size: .8rem; text-align: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    #status.show { opacity: .96; }
+    /* finger-sized controls */
+    .panel { padding: 16px; }
+    input[type=text], select { font-size: 16px; min-height: 44px; }
+    input[type=text][dir=rtl] { font-size: 17px; }
+    input[type=range] { height: 36px; }
+    .chips label { padding: 10px; font-size: .84rem; }
+    .toggle { min-height: 34px; font-size: .88rem; }
+    .toggle input { width: 20px; height: 20px; }
+    .order .mv { min-width: 42px; min-height: 38px; }
+    .sw { width: 38px; height: 38px; }
+    input[type=color] { width: 52px; height: 40px; }
+    .page-tools button { min-height: 42px; }
+    .nudge button { min-width: 44px; }
+    #reroll { min-height: 44px; }
+    .sheet { width: min(100%, max(250px, calc((100dvh - 230px) * 0.7071))); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Générateur de Cachets</h1>
+    <p class="sub">Cachet rectangulaire, ovale, rond, sans cadre, ou griffe du gérant. Rendu encre naturel, texte arabe et latin. Place les cachets sur une page A4 et télécharge-la en PDF, ou chaque cachet en PNG transparent.</p>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="ctl" autocomplete="off" onsubmit="return false">
+      <fieldset>
+        <legend>Modèle</legend>
+        <div class="chips shape-chips" role="radiogroup" aria-label="Forme du cachet">
+          <label><input type="radio" name="shape" value="rect" checked>Rectangle</label>
+          <label><input type="radio" name="shape" value="oval">Ovale</label>
+          <label><input type="radio" name="shape" value="circle">Rond</label>
+          <label><input type="radio" name="shape" value="free">Sans cadre</label>
+          <label><input type="radio" name="shape" value="griffe">Griffe</label>
+        </div>
+      </fieldset>
+
+      <fieldset data-for="griffe">
+        <legend>Griffe</legend>
+        <div class="f">
+          <label>Langue</label>
+          <div class="chips" role="radiogroup" aria-label="Langue de la griffe">
+            <label><input type="radio" name="gLang" value="fr" checked>Français</label>
+            <label><input type="radio" name="gLang" value="ar">العربية</label>
+          </div>
+        </div>
+        <div class="row" data-lang="fr">
+          <div class="f">
+            <label for="gTitleFr">Fonction</label>
+            <input type="text" id="gTitleFr" value="Gérant">
+          </div>
+          <div class="f" style="flex-grow:2">
+            <label for="gNameFr">Nom et prénom</label>
+            <input type="text" id="gNameFr" value="BENALI Karim">
+          </div>
+        </div>
+        <div class="row" data-lang="ar">
+          <div class="f">
+            <label for="gTitleAr">Fonction (arabe)</label>
+            <input type="text" id="gTitleAr" dir="rtl" value="المسير">
+          </div>
+          <div class="f" style="flex-grow:2">
+            <label for="gNameAr">Nom et prénom (arabe)</label>
+            <input type="text" id="gNameAr" dir="rtl" value="بن علي كريم">
+          </div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="gBold"> Texte gras</label>
+        <div class="hint" style="margin-top:-6px">La fonction est centrée au-dessus du nom. Laisse-la vide pour une griffe avec le nom seul.</div>
+      </fieldset>
+
+      <fieldset data-for="company">
+        <legend>Texte</legend>
+        <div class="f">
+          <label for="namear">Raison sociale — arabe</label>
+          <input type="text" id="namear" dir="rtl" value="ش.ذ.م.م أطلس">
+        </div>
+        <div class="f">
+          <label for="name">Raison sociale — latin</label>
+          <input type="text" id="name" dir="auto" value="SARL ATLAS IMPORT-EXPORT">
+        </div>
+        <div class="f">
+          <label for="activity">Activité</label>
+          <input type="text" id="activity" dir="auto" value="للإستيراد والتصدير">
+        </div>
+        <div class="f">
+          <label for="addr">Adresse</label>
+          <input type="text" id="addr" dir="auto" value="حي 500 مسكن عمارة 12 رقم 03 - عنابة">
+        </div>
+        <div class="f">
+          <label for="rc">Registre de commerce</label>
+          <input type="text" id="rc" dir="auto" value="R.C N° : 23/00-0123456 B 21">
+          <div class="hint">Tel qu'il doit apparaître : « R.C N° : … » ou « <bdi dir="rtl">س ت رقم : …</bdi> ». Au centre d'un cachet rond, les deux-points séparent l'intitulé du numéro.</div>
+        </div>
+        <div class="f" data-for="round">
+          <label for="center">Ville ou sigle (centre)</label>
+          <input type="text" id="center" dir="auto" value="ANNABA">
+        </div>
+        <div class="f" data-for="rect">
+          <label for="badge">Numéro encerclé (optionnel)</label>
+          <input type="text" id="badge" dir="auto" value="" placeholder="ex. 08 (code wilaya) ou 4">
+        </div>
+      </fieldset>
+
+      <fieldset data-for="rect">
+        <legend>Disposition des lignes</legend>
+        <div class="row">
+          <div class="f">
+            <label for="actStyle">Ligne d'activité</label>
+            <select id="actStyle">
+              <option value="rules" selected>Avec traits</option>
+              <option value="stars">Avec étoiles ★</option>
+              <option value="dashes">Avec tirets -</option>
+              <option value="plain">Simple</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="order">Ordre des lignes</label>
+            <select id="order">
+              <option value="addrFirst" selected>Adresse puis RC</option>
+              <option value="rcFirst">RC puis adresse</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="hscale">Hauteur du cachet <output id="hscaleOut">100 %</output></label>
+            <input type="range" id="hscale" min="80" max="135" value="100">
+          </div>
+          <div class="f">
+            <label class="toggle" style="margin-top:22px"><input type="checkbox" id="justify" checked> Étirer les lignes</label>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:-6px">Les lignes arabes s'allongent par kashida (للإستيـــراد), les lignes latines par espacement — comme sur les tampons réels.</div>
+      </fieldset>
+
+      <fieldset data-for="round">
+        <legend>Anneau & centre</legend>
+        <div class="row">
+          <div class="f">
+            <label for="ringTop">Haut de l'anneau</label>
+            <select id="ringTop">
+              <option value="name" selected>Raison sociale (latin)</option>
+              <option value="namear">Raison sociale (arabe)</option>
+              <option value="namearAct">Raison sociale (arabe) + activité</option>
+              <option value="activity">Activité</option>
+              <option value="addr">Adresse</option>
+              <option value="rc">Registre de commerce</option>
+              <option value="center">Ville / sigle</option>
+              <option value="none">— Rien —</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="ringBot">Bas de l'anneau</label>
+            <select id="ringBot">
+              <option value="name">Raison sociale (latin)</option>
+              <option value="namear">Raison sociale (arabe)</option>
+              <option value="namearAct" selected>Raison sociale (arabe) + activité</option>
+              <option value="activity">Activité</option>
+              <option value="addr">Adresse</option>
+              <option value="rc">Registre de commerce</option>
+              <option value="center">Ville / sigle</option>
+              <option value="none">— Rien —</option>
+            </select>
+          </div>
+        </div>
+        <div class="f">
+          <label>Au centre — de haut en bas</label>
+          <input type="hidden" id="ctrOrder" value="center,name,namear,act,addr,rc">
+          <ol class="order" id="ctrList">
+            <li data-k="center"><label class="toggle"><input type="checkbox" id="ctr_center" checked> Ville / sigle</label><button type="button" class="ghost mv" data-d="-1" aria-label="Monter Ville / sigle">↑</button><button type="button" class="ghost mv" data-d="1" aria-label="Descendre Ville / sigle">↓</button></li>
+            <li data-k="name"><label class="toggle"><input type="checkbox" id="ctr_name"> Nom latin</label><button type="button" class="ghost mv" data-d="-1" aria-label="Monter Nom latin">↑</button><button type="button" class="ghost mv" data-d="1" aria-label="Descendre Nom latin">↓</button></li>
+            <li data-k="namear"><label class="toggle"><input type="checkbox" id="ctr_namear"> Nom arabe</label><button type="button" class="ghost mv" data-d="-1" aria-label="Monter Nom arabe">↑</button><button type="button" class="ghost mv" data-d="1" aria-label="Descendre Nom arabe">↓</button></li>
+            <li data-k="act"><label class="toggle"><input type="checkbox" id="ctr_act"> Activité</label><button type="button" class="ghost mv" data-d="-1" aria-label="Monter Activité">↑</button><button type="button" class="ghost mv" data-d="1" aria-label="Descendre Activité">↓</button></li>
+            <li data-k="addr"><label class="toggle"><input type="checkbox" id="ctr_addr"> Adresse</label><button type="button" class="ghost mv" data-d="-1" aria-label="Monter Adresse">↑</button><button type="button" class="ghost mv" data-d="1" aria-label="Descendre Adresse">↓</button></li>
+            <li data-k="rc"><label class="toggle"><input type="checkbox" id="ctr_rc" checked> RC</label><button type="button" class="ghost mv" data-d="-1" aria-label="Monter RC">↑</button><button type="button" class="ghost mv" data-d="1" aria-label="Descendre RC">↓</button></li>
+          </ol>
+          <div class="hint">Coche ce qui va au centre, ↑ ↓ pour l'ordre. Ce qui est déjà sur l'anneau n'est pas répété.</div>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="citySize">Taille de la ville / sigle <output id="citySizeOut">100 %</output></label>
+            <input type="range" id="citySize" min="50" max="160" step="5" value="100">
+            <div class="hint">100 % = même taille que le numéro RC</div>
+          </div>
+          <div class="f">
+            <label for="ctrSize">Taille du texte au centre <output id="ctrSizeOut">100 %</output></label>
+            <input type="range" id="ctrSize" min="50" max="130" step="5" value="100">
+            <div class="hint">agrandit / réduit tout le centre</div>
+          </div>
+        </div>
+        <div class="row">
+          <label class="toggle"><input type="checkbox" id="innerRing" checked> Anneau intérieur</label>
+          <label class="toggle"><input type="checkbox" id="ctrRule" checked> Filet sous la ville / sigle</label>
+        </div>
+      </fieldset>
+
+      <fieldset data-for="frame">
+        <legend>Cadre</legend>
+        <div class="row">
+          <div class="f">
+            <label for="frame">Bordure</label>
+            <select id="frame">
+              <option value="single" selected>Simple</option>
+              <option value="double">Double (épais + fin)</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="thick">Épaisseur</label>
+            <input type="range" id="thick" min="2" max="12" step="0.5" value="5">
+          </div>
+        </div>
+        <label class="toggle" data-for="rectonly"><input type="checkbox" id="rounded"> Coins arrondis</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Polices</legend>
+        <div class="row">
+          <div class="f">
+            <label for="farab">Arabe</label>
+            <select id="farab">
+              <option value="naskh" selected>Naskh (type Simplified Arabic)</option>
+              <option value="amiri">Traditionnel (type Traditional Arabic)</option>
+              <option value="cairo">Moderne (Cairo)</option>
+              <option value="lalezar">Très gras (Lalezar)</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="flat">Latin</label>
+            <select id="flat">
+              <option value="arial" selected>Arial (Arimo)</option>
+              <option value="cond">Condensé (Oswald)</option>
+              <option value="times">Times (Tinos)</option>
+              <option value="gothic">Gothique (Montserrat)</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Encre & rendu</legend>
+        <div class="f">
+          <label>Couleur d'encre</label>
+          <div class="swatches" id="swatches">
+            <button type="button" class="sw" data-ink="#24318f" style="background:#24318f" aria-label="Bleu tampon" title="Bleu tampon"></button>
+            <button type="button" class="sw" data-ink="#1d47c4" style="background:#1d47c4" aria-label="Bleu vif" title="Bleu vif"></button>
+            <button type="button" class="sw" data-ink="#3a2b8f" style="background:#3a2b8f" aria-label="Violet" title="Violet"></button>
+            <button type="button" class="sw" data-ink="#b0233a" style="background:#b0233a" aria-label="Rouge" title="Rouge"></button>
+            <button type="button" class="sw" data-ink="#26262b" style="background:#26262b" aria-label="Noir" title="Noir"></button>
+            <input type="color" id="ink" value="#24318f" aria-label="Couleur personnalisée">
+          </div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="natural" checked> Rendu encre naturel</label>
+        <div class="row" id="naturalRow">
+          <div class="f">
+            <label for="pressure">Encrage</label>
+            <input type="range" id="pressure" min="0" max="100" value="55">
+            <div class="hint">peu d'encre ← → bien encré</div>
+          </div>
+          <div class="f">
+            <label for="wear">Irrégularité</label>
+            <input type="range" id="wear" min="0" max="100" value="45">
+            <div class="hint">pression égale ← → tampon fatigué</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="tilt">Inclinaison <output id="tiltOut">-2°</output></label>
+            <input type="range" id="tilt" min="-15" max="15" step="0.5" value="-2">
+          </div>
+          <div class="f" style="align-self:center">
+            <button type="button" class="ghost" id="reroll" title="Nouveau motif d'encre, même texte">Autre impression</button>
+          </div>
+        </div>
+      </fieldset>
+      <div class="form-end">
+        <button type="button" class="ghost" id="reset2">Réinitialiser tous les réglages</button>
+      </div>
+    </form>
+
+    <div class="stage">
+      <div class="tabs" role="tablist" aria-label="Affichage">
+        <button type="button" role="tab" class="tab" id="tabStamp" aria-selected="true" aria-controls="viewStamp">Cachet</button>
+        <button type="button" role="tab" class="tab" id="tabPage" aria-selected="false" aria-controls="viewPage">Page A4</button>
+      </div>
+      <div id="viewStamp" role="tabpanel" aria-labelledby="tabStamp">
+        <div class="paper"><canvas id="cv" width="10" height="10" aria-label="Aperçu du cachet"></canvas></div>
+      </div>
+      <div id="viewPage" role="tabpanel" aria-labelledby="tabPage" hidden>
+        <div class="sheet" id="sheet" aria-label="Page A4"></div>
+        <div class="page-tools">
+          <div class="f">
+            <label for="itemSize">Taille sur la page <output id="sizeOut">40 mm</output></label>
+            <input type="range" id="itemSize" min="15" max="120" step="1" value="40">
+          </div>
+          <div class="nudge" role="group" aria-label="Déplacer le cachet sélectionné de 1 mm">
+            <button type="button" class="ghost" data-nx="-1" aria-label="1 mm à gauche">←</button>
+            <button type="button" class="ghost" data-ny="-1" aria-label="1 mm vers le haut">↑</button>
+            <button type="button" class="ghost" data-ny="1" aria-label="1 mm vers le bas">↓</button>
+            <button type="button" class="ghost" data-nx="1" aria-label="1 mm à droite">→</button>
+          </div>
+          <button type="button" class="ghost" id="addItem" title="Ajoute un deuxième cachet (par ex. une griffe) sur la même page">+ Ajouter un cachet</button>
+          <button type="button" class="ghost" id="delItem">Retirer</button>
+        </div>
+        <p class="note" id="posOut">Glisse le cachet pour le placer.</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="pdf"><span class="lg">Télécharger le </span>PDF A4</button>
+        <button type="button" id="dl"><span class="lg">Télécharger le </span>PNG</button>
+        <button type="button" class="ghost" id="copy">Copier<span class="lg"> l'image</span></button>
+        <button type="button" class="ghost" id="share" hidden>Partager</button>
+        <button type="button" class="ghost" id="reset">Réinitialiser</button>
+      </div>
+      <p class="note" id="status">Fond transparent, haute résolution (×3), prêt à poser sur un document.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =====================================================================
+     Basics
+     ===================================================================== */
+  var $ = function (id) { return document.getElementById(id); };
+  var TAU = Math.PI * 2;
+  var SS_VIEW = 2, SS_EXPORT = 3;           // device pixels per layout pixel
+  var AR_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  function hasArabic(s) { return AR_RE.test(s); }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function smooth(e0, e1, x) { var t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hexRGB(h) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(h || "");
+    var n = parseInt(m ? m[1] : "24318f", 16);
+    return [n >> 16 & 255, n >> 8 & 255, n & 255];
+  }
+
+  /* =====================================================================
+     Fonts — chosen to match what Algerian stamp makers actually use
+     (Simplified/Traditional Arabic, Arial, Times, condensed gothics)
+     ===================================================================== */
+  // w = weight used on cachets, wr = regular weight (griffes are usually set in plain type)
+  var AR_FONTS = {
+    naskh:   { fam: "'Noto Naskh Arabic', 'Arimo', serif", load: "'Noto Naskh Arabic'", w: 700, wr: 500, lh: 1.36 },
+    amiri:   { fam: "'Amiri', 'Tinos', serif", load: "'Amiri'", w: 700, wr: 400, lh: 1.5 },
+    cairo:   { fam: "'Cairo', 'Arimo', sans-serif", load: "'Cairo'", w: 800, wr: 600, lh: 1.36 },
+    lalezar: { fam: "'Lalezar', 'Arimo', sans-serif", load: "'Lalezar'", w: 400, wr: 400, lh: 1.3 }
+  };
+  var LAT_FONTS = {
+    arial:  { fam: "'Arimo', 'Noto Naskh Arabic', sans-serif", load: "'Arimo'", w: 700, wr: 400, lh: 1.2 },
+    cond:   { fam: "'Oswald', 'Noto Naskh Arabic', sans-serif", load: "'Oswald'", w: 600, wr: 400, lh: 1.16 },
+    times:  { fam: "'Tinos', 'Amiri', serif", load: "'Tinos'", w: 700, wr: 400, lh: 1.2 },
+    gothic: { fam: "'Montserrat', 'Noto Naskh Arabic', sans-serif", load: "'Montserrat'", w: 700, wr: 500, lh: 1.2 }
+  };
+  function regular(f) { return { fam: f.fam, load: f.load, w: f.wr, wr: f.wr, lh: f.lh }; }
+  // In Arabic lines, numbers like 04/00-0406918 get scrambled by the bidi algorithm
+  // (→ 0406918-04/00). Isolating each number group as left-to-right keeps it intact.
+  function bidiFix(s) {
+    if (!hasArabic(s)) return s;
+    return s.replace(/[0-9\u0660-\u0669](?:[0-9\u0660-\u0669\/\-.]*[0-9\u0660-\u0669])?/g, function (m) {
+      return /[\/\-.]/.test(m) ? "\u2066" + m + "\u2069" : m;
+    });
+  }
+  function fontFor(text, st) { return hasArabic(text) ? (AR_FONTS[st.farab] || AR_FONTS.naskh) : (LAT_FONTS[st.flat] || LAT_FONTS.arial); }
+  function fontStr(f, px) { return f.w + " " + px.toFixed(2) + "px " + f.fam; }
+
+  var mcv = document.createElement("canvas");
+  var mctx = mcv.getContext("2d");
+  var mcache = new Map();
+  function measure(text, f, px) {
+    mctx.font = fontStr(f, px);
+    mctx.direction = hasArabic(text) ? "rtl" : "ltr";
+    return mctx.measureText(text);
+  }
+  // width and ink height per pixel of font size (cached; cleared when web fonts arrive)
+  function metrics(text, f) {
+    var k = f.fam + f.w + "|" + text, v = mcache.get(k);
+    if (!v) {
+      var m = measure(bidiFix(text), f, 100);
+      v = { unit: m.width / 100, ink: Math.max(0.4, (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) / 100) };
+      mcache.set(k, v);
+    }
+    return v;
+  }
+
+  /* =====================================================================
+     Arabic kashida justification (tatweel ـ inserted where letters join,
+     one stretch per word, at the last joining point: الصقـــر, مكـــة …)
+     ===================================================================== */
+  var DUAL = "بتثجحخسشصضطظعغفقكلمنهيئىپچڤڨگکیـ";
+  var RIGHT = "اأإآٱدذرزژوؤة";
+  var HARAKA = /[\u064B-\u065F\u0670]/;
+  function kashidaSlots(chars) {
+    var words = [], cur = [];
+    for (var k = 0; k < chars.length; k++) {
+      var c = chars[k];
+      if (c === " " || c === "\u00A0") { if (cur.length) words.push(cur); cur = []; continue; }
+      if (DUAL.indexOf(c) < 0 || c === "ـ") continue;
+      var j = k + 1;
+      while (j < chars.length && HARAKA.test(chars[j])) j++;
+      var n = chars[j];
+      if (!n || (DUAL.indexOf(n) < 0 && RIGHT.indexOf(n) < 0) || n === "ـ") continue;
+      if (c === "ل" && "اأإآٱ".indexOf(n) >= 0) continue;      // keep the lam-alef ligature intact
+      cur.push(j);                                               // tatweel goes right before chars[j]
+    }
+    if (cur.length) words.push(cur);
+    return words;
+  }
+  function kashidaFill(text, f, px, target, maxAdd) {
+    var base = measure(text, f, px).width;
+    if (base >= target) return { text: text, width: base };
+    var chars = Array.from(text);
+    var words = kashidaSlots(chars);
+    if (!words.length) return { text: text, width: base };
+    var kw = measure("ـ", f, px).width || px * 0.3;
+    var need = Math.floor(Math.min(target - base, base * maxAdd) / kw);
+    if (need <= 0) return { text: text, width: base };
+    var perMax = Math.max(1, Math.floor(px * 1.8 / kw));      // one stretch ≤ ~2 em, like the samples
+    var slots = words.map(function (w) { return w[w.length - 1]; });
+    var second = words.filter(function (w) { return w.length > 2; }).map(function (w) { return w[w.length - 2]; });
+    var counts = {}, guard = 0, usedSecond = false;
+    while (need > 0 && guard++ < 400) {
+      var moved = false;
+      for (var i = 0; i < slots.length && need > 0; i++) {
+        var c = counts[slots[i]] || 0;
+        if (c < perMax) { counts[slots[i]] = c + 1; need--; moved = true; }
+      }
+      if (!moved) {
+        if (!usedSecond && second.length) { slots = slots.concat(second); usedSecond = true; continue; }
+        break;
+      }
+    }
+    var build = function () {
+      var s = "";
+      for (var q = 0; q < chars.length; q++) { if (counts[q]) s += "ـ".repeat(counts[q]); s += chars[q]; }
+      return s;
+    };
+    var out = build(), w = measure(out, f, px).width;
+    // shaping can shift widths a little: trim back until it fits
+    var keys = Object.keys(counts);
+    for (var g = 0; w > target && g < 60 && keys.length; g++) {
+      var kk = keys[g % keys.length];
+      if (counts[kk] > 0) { counts[kk]--; out = build(); w = measure(out, f, px).width; }
+    }
+    return { text: out, width: w };
+  }
+
+  /* =====================================================================
+     One line of text rendered on its own canvas, at device resolution.
+     target > 0: the line is fitted into that width — condensed when too
+     long, stretched (kashida / letter-spacing) when justify is on.
+     ===================================================================== */
+  function makeLine(text, f, px, target, opt) {
+    opt = opt || {};
+    text = bidiFix(text);
+    var isAr = hasArabic(text);
+    var t = text, sx = 1, track = 0, charW = null;
+    var m = measure(t, f, px), w0 = m.width, content = w0;
+    if (target > 0) {
+      if (w0 > target) { sx = target / w0; content = target; }
+      else if (opt.justify) {
+        if (isAr) {
+          var r = kashidaFill(t, f, px, target, opt.arStretch == null ? 0.6 : opt.arStretch);
+          t = r.text; m = measure(t, f, px); content = m.width;
+          if (content < target && (target - content) / target < 0.05) { sx = target / content; content = target; }
+        } else {
+          var chars = Array.from(t);
+          if (chars.length > 1) {
+            mctx.font = fontStr(f, px); mctx.direction = "ltr";
+            charW = chars.map(function (ch) { return mctx.measureText(ch).width; });
+            var sum = charW.reduce(function (a, b) { return a + b; }, 0);
+            // capitals and digits take wide spacing well; lowercase words fall apart
+            var cap = opt.track == null ? 0.55 : opt.track;
+            if (/[a-zà-ÿ]/.test(t)) cap = Math.min(cap, 0.1);
+            else if ((t.match(/[0-9]/g) || []).length > chars.length * 0.4) cap = Math.min(cap, 0.16);
+            track = Math.max(0, Math.min((target - sum) / (chars.length - 1), px * cap));
+            content = sum + track * (chars.length - 1);
+            if (content > target) { track = 0; charW = null; content = w0; }
+          }
+        }
+      }
+    }
+    var asc = Math.max(m.actualBoundingBoxAscent, px * 0.25), desc = Math.max(m.actualBoundingBoxDescent, 0);
+    var padX = Math.ceil(px * 0.2) + 3, padY = Math.ceil(px * 0.12) + 3;
+    var boxW = target > 0 ? Math.max(target, content) : content;
+    var cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.ceil(boxW + padX * 2));
+    cv.height = Math.max(1, Math.ceil(asc + desc + padY * 2));
+    var c = cv.getContext("2d", { willReadFrequently: true });
+    c.fillStyle = "#000";
+    c.font = fontStr(f, px);
+    c.direction = isAr ? "rtl" : "ltr";
+    c.textAlign = "left";
+    c.textBaseline = "alphabetic";
+    var base = padY + asc;
+    var left = padX + (boxW - content) / 2;
+    if (charW) {
+      var x = left, ch = Array.from(t);
+      for (var i = 0; i < ch.length; i++) { c.fillText(ch[i], x, base); x += charW[i] + track; }
+    } else {
+      c.save(); c.translate(left, 0); c.scale(sx, 1); c.fillText(t, 0, base); c.restore();
+    }
+    return { cv: cv, w: boxW, content: content, padX: padX, cy: base + (desc - asc) / 2, inkH: asc + desc };
+  }
+  // put a line canvas on the mask: x = left edge of the line box, cy = vertical ink centre (device px)
+  function blit(ctx, L, x, cy) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(L.cv, Math.round(x - L.padX), Math.round(cy - L.cy));
+  }
+
+  /* =====================================================================
+     Text on an ellipse: the line is drawn flat (so Arabic keeps its
+     shaping and right-to-left order), then bent onto the ring by an
+     inverse warp. Top arc: reads left→right, letter tops outward.
+     Bottom arc: reads left→right, letter tops toward the centre.
+     ===================================================================== */
+  function arcTable(A, B, N) {
+    var tab = new Float64Array(N + 1), acc = 0, dt = TAU / N;
+    for (var i = 1; i <= N; i++) {
+      var tm = (i - 0.5) * dt;
+      acc += Math.sqrt(A * A * Math.sin(tm) * Math.sin(tm) + B * B * Math.cos(tm) * Math.cos(tm)) * dt;
+      tab[i] = acc;
+    }
+    return {
+      P: acc,
+      sOf: function (t) {
+        t = ((t % TAU) + TAU) % TAU;
+        var fi = t / TAU * N, i0 = Math.floor(fi), r = fi - i0;
+        return tab[i0] + (tab[Math.min(N, i0 + 1)] - tab[i0]) * r;
+      }
+    };
+  }
+  var bandCache = [];
+  function bandMap(Wd, Hd, cx, cy, A, B, half) {
+    var key = [Wd, Hd, cx, cy, A, B, half].map(function (v) { return v.toFixed(2); }).join("|");
+    for (var q = 0; q < bandCache.length; q++) if (bandCache[q].key === key) return bandCache[q];
+    var tab = arcTable(A, B, 4096);
+    var x0 = Math.max(0, Math.floor(cx - A - half - 2)), x1 = Math.min(Wd - 1, Math.ceil(cx + A + half + 2));
+    var y0 = Math.max(0, Math.floor(cy - B - half - 2)), y1 = Math.min(Hd - 1, Math.ceil(cy + B + half + 2));
+    var cap = (x1 - x0 + 1) * (y1 - y0 + 1);
+    var idx = new Int32Array(cap), dd = new Float32Array(cap), ss = new Float32Array(cap), n = 0;
+    var Ao = A + half, Bo = B + half, Ai = A - half, Bi = B - half;
+    var iAo = 1 / (Ao * Ao), iBo = 1 / (Bo * Bo), iAi = 1 / (Ai * Ai), iBi = 1 / (Bi * Bi);
+    for (var y = y0; y <= y1; y++) {
+      var dy = y + 0.5 - cy, dy2 = dy * dy;
+      for (var x = x0; x <= x1; x++) {
+        var dx = x + 0.5 - cx, dx2 = dx * dx;
+        if (dx2 * iAo + dy2 * iBo > 1) continue;
+        if (dx2 * iAi + dy2 * iBi < 1) continue;
+        var r2 = dx2 + dy2 + 1e-9;
+        var d = Math.sqrt(r2) - A * B / Math.sqrt(B * B * dx2 / r2 + A * A * dy2 / r2);
+        for (var k = 0; k < 3; k++) {                 // offset ellipse (A+d, B+d) through this pixel
+          var a = A + d, b = B + d, fx = dx / a, fy = dy / b;
+          d -= (fx * fx + fy * fy - 1) / (-2 * (fx * fx / a + fy * fy / b));
+        }
+        var t = Math.atan2(dy / (B + d), dx / (A + d));
+        idx[n] = y * Wd + x; dd[n] = d; ss[n] = tab.sOf(t); n++;
+      }
+    }
+    var map = { key: key, n: n, idx: idx, d: dd, s: ss, P: tab.P, sOf: tab.sOf };
+    bandCache.unshift(map);
+    if (bandCache.length > 3) bandCache.length = 3;
+    return map;
+  }
+  function warpLine(data, map, L, s0, dir) {
+    var sw = L.cv.width, sh = L.cv.height;
+    var sd = L.cv.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, sw, sh).data;
+    var P = map.P, span = L.w + 2 * L.padX;
+    function A(x, y) { return (x < 0 || y < 0 || x >= sw || y >= sh) ? 0 : sd[(y * sw + x) * 4 + 3]; }
+    for (var i = 0; i < map.n; i++) {
+      var u = (dir > 0 ? map.s[i] - s0 : s0 - map.s[i]) + L.padX;
+      u -= Math.floor(u / P) * P;
+      if (u > span) continue;
+      var xs = u - 0.5;
+      var ys = (dir > 0 ? L.cy - map.d[i] : L.cy + map.d[i]) - 0.5;
+      var xi = Math.floor(xs), yi = Math.floor(ys);
+      if (xi < -1 || yi < -1 || xi >= sw || yi >= sh) continue;
+      var fx = xs - xi, fy = ys - yi;
+      var v = A(xi, yi) * (1 - fx) * (1 - fy) + A(xi + 1, yi) * fx * (1 - fy) +
+              A(xi, yi + 1) * (1 - fx) * fy + A(xi + 1, yi + 1) * fx * fy;
+      if (v > 0.5) { var p = map.idx[i] * 4 + 3; if (v > data[p]) data[p] = v; }
+    }
+  }
+
+  /* =====================================================================
+     Small drawing helpers (layout units, ctx scaled by SS)
+     ===================================================================== */
+  function rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function star(ctx, cx, cy, r) {
+    ctx.beginPath();
+    for (var i = 0; i < 5; i++) {
+      var a = -Math.PI / 2 + i * TAU / 5, a2 = a + Math.PI / 5;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.lineTo(cx + Math.cos(a2) * r * 0.42, cy + Math.sin(a2) * r * 0.42);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  function splitRC(rc) {
+    var i = rc.indexOf(":");
+    if (i > 0 && i < rc.length - 1) return [rc.slice(0, i + 1).trim(), rc.slice(i + 1).trim()];
+    var m = /^(.*?N\s*[°º]\.?)\s*(.+)$/i.exec(rc);
+    if (m) return [m[1].trim(), m[2].trim()];
+    return ["", rc];
+  }
+  function splitTwo(s) {
+    if (s.length < 24) return [s];
+    var best = -1, bestScore = 1e9, mid = s.length / 2;
+    for (var i = 1; i < s.length - 1; i++) {
+      if (s[i] !== " ") continue;
+      var score = Math.abs(i - mid) - (/[-–—,،]/.test(s[i - 1] + s[i + 1]) ? 6 : 0);
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    return best < 0 ? [s] : [s.slice(0, best).trim(), s.slice(best + 1).trim()];
+  }
+
+  /* =====================================================================
+     Rectangle / frameless layout
+     Pattern from the samples: name (biggest) → activity (often decorated
+     with rules or stars) → address → RC; every line fills the frame width.
+     ===================================================================== */
+  function rectLines(st) {
+    var L = [];
+    if (st.namear) L.push({ text: st.namear, wt: 1.22, role: "name" });
+    if (st.name) L.push({ text: st.name, wt: st.namear ? 0.92 : 1.22, role: "name" });
+    if (st.activity) L.push({ text: st.activity, wt: 0.9, role: "act" });
+    // a long address goes on two lines, as stamp makers do, instead of shrinking to nothing
+    var addr = [];
+    if (st.addr) {
+      var parts = st.addr.length > (hasArabic(st.addr) ? 40 : 44) ? splitTwo(st.addr) : [st.addr];
+      addr = parts.map(function (a) { return { text: a, wt: parts.length > 1 ? 0.66 : 0.72, role: "addr" }; });
+    }
+    var rc = st.rc ? [{ text: st.rc, wt: 0.86, role: "rc" }] : [];
+    return L.concat(st.order === "rcFirst" ? rc.concat(addr) : addr.concat(rc));
+  }
+
+  function layoutRect(st, frameless) {
+    var items = rectLines(st);
+    var n = Math.max(1, items.length);
+    var W = 840;
+    var H = Math.round(((frameless ? 40 : 72) + 66 * n) * st.hscale / 100);
+    var pad = 16;
+    var t = frameless ? 0 : st.thick;
+    var dbl = !frameless && st.frame === "double";
+    var t2 = Math.max(1.4, t * 0.42), g2 = 3 + t * 0.5;
+    var frameIn = frameless ? 0 : t + (dbl ? g2 + t2 : 0);
+    var mx = frameless ? 4 : 9 + t * 0.35, my = frameless ? 2 : 5 + t * 0.3;
+    var box = { x: pad + frameIn + mx, y: pad + frameIn + my };
+    box.w = W - 2 * box.x; box.h = H - 2 * box.y;
+
+    var prep = items.map(function (it) {
+      var f = fontFor(it.text, st), mt = metrics(it.text, f);
+      return { text: it.text, wt: it.wt, role: it.role, f: f, unit: mt.unit, lh: f.lh, cmin: hasArabic(it.text) ? 0.84 : 0.78 };
+    });
+    var badge = st.badge, nb = badge ? Math.min(2, Math.max(1, prep.length - 1)) : 0, bw = 0;
+    function decoW(p, s) {
+      if (p.role !== "act") return 0;
+      if (st.actStyle === "rules") return box.w * 0.3;
+      if (st.actStyle === "stars") return 2 * s * 0.95;
+      if (st.actStyle === "dashes") return 2 * s * 0.75;
+      return 0;
+    }
+    function avail(i, p, s) { return box.w - decoW(p, s) - (badge && i >= prep.length - nb ? bw : 0); }
+    function sizesAt(k) {
+      return prep.map(function (p, i) {
+        var s = k * p.wt;
+        for (var r = 0; r < 3; r++) s = Math.min(k * p.wt, avail(i, p, s) / (p.unit * p.cmin));
+        return Math.min(s, box.h / p.lh);
+      });
+    }
+    function total(sz) { return sz.reduce(function (a, s, i) { return a + s * prep[i].lh; }, 0); }
+    function solve() {
+      var lo = 0, hi = 400;
+      for (var it = 0; it < 34; it++) { var mid = (lo + hi) / 2; if (total(sizesAt(mid)) <= box.h) lo = mid; else hi = mid; }
+      return sizesAt(lo);
+    }
+    var sizes = solve(), D = 0;
+    if (badge && prep.length) {
+      for (var it = 0; it < 3; it++) {
+        var span = 0;
+        for (var j = prep.length - nb; j < prep.length; j++) span += sizes[j] * prep[j].lh;
+        D = Math.min(span * 0.96, box.h * 0.62, 150);
+        bw = D + Math.max(10, D * 0.22);
+        sizes = solve();
+      }
+    }
+    var hs = sizes.map(function (s, i) { return s * prep[i].lh; });
+    var free = Math.max(0, box.h - hs.reduce(function (a, b) { return a + b; }, 0));
+    var gap = free / (prep.length + 1), y = box.y + gap, ys = [];
+    hs.forEach(function (h) { ys.push(y + h / 2); y += h + gap; });
+
+    return {
+      W: W, H: H, nominal: frameless ? box.w : W - 2 * pad,   // width that "Taille sur la page" refers to
+      drawVector: function (ctx, SS) {
+        ctx.setTransform(SS, 0, 0, SS, 0, 0);
+        if (!frameless) {
+          var r = st.rounded ? 15 : 3.5;
+          ctx.lineWidth = t; ctx.lineJoin = "round";
+          rrect(ctx, pad + t / 2, pad + t / 2, W - 2 * pad - t, H - 2 * pad - t, r + t / 2); ctx.stroke();
+          if (dbl) {
+            var o = pad + t + g2 + t2 / 2;
+            ctx.lineWidth = t2;
+            rrect(ctx, o, o, W - 2 * o, H - 2 * o, Math.max(1.5, r - g2 * 0.5)); ctx.stroke();
+          }
+        }
+        prep.forEach(function (p, i) {
+          var beside = badge && i >= prep.length - nb;
+          var x0 = box.x + (beside ? bw : 0), w0 = box.w - (beside ? bw : 0);
+          drawRectLine(ctx, SS, st, p, sizes[i], x0, w0, ys[i]);
+        });
+        if (badge && prep.length) {
+          var first = prep.length - nb, last = prep.length - 1;
+          var top = ys[first] - hs[first] / 2, bot = ys[last] + hs[last] / 2;
+          var bcx = box.x + D / 2, bcy = (top + bot) / 2, lwB = Math.max(1.6, D * 0.065);
+          ctx.setTransform(SS, 0, 0, SS, 0, 0);
+          ctx.lineWidth = lwB;
+          ctx.beginPath(); ctx.arc(bcx, bcy, D / 2 - lwB / 2, 0, TAU); ctx.stroke();
+          var bf = fontFor(badge, st), bm = metrics(badge, bf);
+          var bpx = Math.min(D * 0.5 / bm.ink, D * 0.66 / bm.unit);
+          var BL = makeLine(badge, bf, bpx * SS, 0, {});
+          blit(ctx, BL, bcx * SS - BL.w / 2, bcy * SS);
+        }
+      }
+    };
+  }
+
+  function drawRectLine(ctx, SS, st, p, size, x0, w0, cy) {
+    var px = size * SS, style = p.role === "act" ? st.actStyle : "plain";
+    var isAr = hasArabic(p.text), justify = st.justify;
+    var opt = { justify: justify, arStretch: 0.5, track: 0.38 };
+    var ink = isAr ? cy + size * 0.06 : cy;                  // Arabic body sits a bit below its ink centre
+    if (style === "rules") {
+      var L = makeLine(p.text, p.f, px, 0, {});
+      var maxT = w0 * 0.7;
+      if (L.w / SS > maxT) L = makeLine(p.text, p.f, px, maxT * SS, {});
+      var tw = L.w / SS;
+      blit(ctx, L, (x0 + w0 / 2) * SS - L.w / 2, cy * SS);
+      var g = size * 0.42, lw = Math.max(1.6, size * 0.07), seg = (w0 - tw) / 2 - g;
+      ctx.setTransform(SS, 0, 0, SS, 0, 0);
+      if (seg > 4) {
+        ctx.fillRect(x0, ink - lw / 2, seg, lw);
+        ctx.fillRect(x0 + w0 - seg, ink - lw / 2, seg, lw);
+      }
+      return;
+    }
+    var r = size * 0.3, len = size * 0.42, g2 = size * 0.35;
+    var side = style === "stars" ? 2 * r + g2 : style === "dashes" ? len + g2 : 0;
+    var T = makeLine(p.text, p.f, px, (w0 - 2 * side) * SS, opt);
+    blit(ctx, T, (x0 + side) * SS, cy * SS);
+    if (!side) return;
+    // the ornaments hug the text when it does not fill the whole line
+    var half = T.content / SS / 2, mid = x0 + w0 / 2;
+    ctx.setTransform(SS, 0, 0, SS, 0, 0);
+    if (style === "stars") {
+      star(ctx, mid - half - g2 - r, ink, r); star(ctx, mid + half + g2 + r, ink, r);
+    } else {
+      var th = Math.max(1.6, size * 0.085);
+      ctx.fillRect(mid - half - g2 - len, ink - th / 2, len, th);
+      ctx.fillRect(mid + half + g2, ink - th / 2, len, th);
+    }
+  }
+
+  /* =====================================================================
+     Round / oval layout
+     Pattern from the samples: outer ring (single or double), a text band
+     ≈ 28 % of the radius, a thin inner ring at ≈ 0.67 R, name on the top
+     arc, second text on the bottom arc, horizontal lines in the centre.
+     ===================================================================== */
+  function ringText(st, key) {
+    switch (key) {
+      case "name": return st.name;
+      case "namear": return st.namear;
+      case "namearAct": return [st.namear, st.activity].filter(Boolean).join(" ");
+      case "activity": return st.activity;
+      case "addr": return st.addr;
+      case "rc": return st.rc;
+      case "center": return st.center;
+      default: return "";
+    }
+  }
+  function ringKeys(key) { return key === "namearAct" ? ["namear", "activity"] : [key]; }
+  // order of the centre lines (round / oval); unknown or missing keys fall back to the default order
+  var CTR_KEYS = ["center", "name", "namear", "act", "addr", "rc"];
+  function ctrOrderOf(v) {
+    var o = String(v || "").split(",").filter(function (k, i, a) { return CTR_KEYS.indexOf(k) >= 0 && a.indexOf(k) === i; });
+    CTR_KEYS.forEach(function (k) { if (o.indexOf(k) < 0) o.push(k); });
+    return o;
+  }
+  // what actually goes on the ring: the choice in the menus, unless the top would be empty
+  // (e.g. a client with only an Arabic name) — then the Arabic name moves up and the
+  // city (or the RC) takes the bottom
+  function ringPlan(st) {
+    var top = st.ringTop, bot = st.ringBot;
+    if (top !== "none" && !ringText(st, top)) {
+      if (/^namear/.test(bot) && ringText(st, bot)) {
+        top = bot; bot = st.center ? "center" : st.rc ? "rc" : "none";
+      } else {
+        var cands = ["name", "namear", "namearAct", "center"], botUses = ringKeys(bot);
+        for (var i = 0; i < cands.length; i++) {
+          var k = cands[i], clash = ringKeys(k).some(function (x) { return botUses.indexOf(x) >= 0; });
+          if (!clash && ringText(st, k)) { top = k; break; }
+        }
+      }
+    }
+    return { top: top, bot: bot };
+  }
+
+  function layoutRound(st, oval) {
+    var W = oval ? 800 : 620, H = oval ? 540 : 620, pad = 14;
+    var cx = W / 2, cy = H / 2, t = st.thick;
+    var dbl = st.frame === "double";
+    var t2 = Math.max(1.4, t * 0.42), g2 = 3 + t * 0.55;
+    var A0 = W / 2 - pad - t / 2, B0 = H / 2 - pad - t / 2;
+    var offO = t / 2 + (dbl ? g2 + t2 : 0);
+    var band = Math.min(A0, B0) * 0.275;
+    var ti = Math.max(1.4, t * 0.48);
+    var At = A0 - offO - band / 2, Bt = B0 - offO - band / 2;
+    var Ai = A0 - offO - band - (st.innerRing ? ti : -band * 0.15);
+    var Bi = B0 - offO - band - (st.innerRing ? ti : -band * 0.15);
+    var tab = arcTable(At, Bt, 2048), P = tab.P;
+
+    function arc(text) {
+      if (!text) return null;
+      var f = fontFor(text, st), mt = metrics(text, f), ar = hasArabic(text);
+      var px = band * (ar ? 0.86 : 0.56) / mt.ink;
+      px = Math.min(px, band * (ar ? 0.72 : 0.8));
+      return { text: text, f: f, px: px, nat: mt.unit * px, ar: ar };
+    }
+    // if the chosen top text is empty (e.g. only an Arabic name was typed), fall back to a name
+    var plan = ringPlan(st), topKey = plan.top, botKey = plan.bot;
+    var top = arc(ringText(st, topKey)), bot = arc(ringText(st, botKey));
+    var gap = P * 0.045, spanT = 0, spanB = 0;
+    var nt = top ? top.nat * 1.06 : 0, nb = bot ? bot.nat * 1.06 : 0;
+    function shrink(a, f) { if (a && f < 0.82) a.px *= f / 0.82; }
+    // short texts are spread a little (like real stamps), never into lonely letters
+    function spread(n, want, ar) { return Math.min(Math.max(n, want), ar ? n * 1.3 : n * 2.2); }
+    if (top && bot) {
+      var av = P - 2 * gap;
+      if (nt + nb > av) {
+        // too long: both give way by the same factor, so the ring keeps one letter size
+        var fr = av / (nt + nb);
+        spanT = nt * fr; spanB = nb * fr;
+        shrink(top, fr); shrink(bot, fr);
+      } else {
+        spanB = Math.min(spread(nb, P * 0.2, bot.ar), P * 0.42, av - nt);
+        spanT = Math.min(spread(nt, P * 0.5, top.ar), av - spanB);
+      }
+    } else if (top || bot) {
+      var one = top || bot, lim = top ? P * 0.9 : P * 0.46, n1 = top ? nt : nb, sp;
+      if (n1 > lim) { sp = lim; shrink(one, lim / n1); }
+      else sp = Math.min(spread(n1, top ? P * 0.5 : P * 0.25, one.ar), lim);
+      if (top) spanT = sp; else spanB = sp;
+    }
+
+    // centre lines: whatever is ticked and not already on the ring
+    var used = {};
+    ringKeys(topKey).concat(ringKeys(botKey)).forEach(function (k) { used[k] = true; });
+    var ctr = [];
+    function add(text, wt, kind) { if (text) ctr.push({ text: text, wt: wt, kind: kind || "" }); }
+    ctrOrderOf(st.ctrOrder).forEach(function (k) {                // the order chosen in "Au centre"
+      if (k === "center" && st.ctr_center && !used.center) add(st.center, (st.citySize || 100) / 100, "center");
+      if (k === "name" && st.ctr_name && !used.name) add(st.name, 0.95);
+      if (k === "namear" && st.ctr_namear && !used.namear) add(st.namear, 0.95);
+      if (k === "act" && st.ctr_act && !used.activity) add(st.activity, 0.8);
+      if (k === "addr" && st.ctr_addr && !used.addr && st.addr) splitTwo(st.addr).forEach(function (a) { add(a, 0.7); });
+      if (k === "rc" && st.ctr_rc && !used.rc && st.rc) { var rcp = splitRC(st.rc); add(rcp[0], 0.7); add(rcp[1], 1.0, "rcnum"); }
+    });
+    ctr.forEach(function (c) { c.f = fontFor(c.text, st); var mt = metrics(c.text, c.f); c.unit = mt.unit; c.lh = c.f.lh; });
+    // the rule goes under the city / sigle wherever it sits — even as the last line
+    var ruleAt = -1;
+    if (st.ctrRule) for (var ri = 0; ri < ctr.length; ri++) if (ctr[ri].kind === "center") { ruleAt = ri; break; }
+    var rule = ruleAt >= 0;
+    var mI = 0.08, Aie = Ai * (1 - mI), Bie = Bi * (1 - mI);
+    function chord(y) { var q = Math.abs(y) / Bie; return q >= 1 ? 0 : 2 * Aie * Math.sqrt(1 - q * q); }
+    function stack(sizes) {
+      var hs = sizes.map(function (s, i) { return s * ctr[i].lh; });
+      var rg = rule ? Math.max(6, sizes[ruleAt] * 0.3) : 0;
+      var tot = hs.reduce(function (a, b) { return a + b; }, 0) + rg;
+      var y = -tot / 2, ys = [], ruleY = 0;
+      for (var i = 0; i < hs.length; i++) {
+        ys.push(y + hs[i] / 2); y += hs[i];
+        if (i === ruleAt) { ruleY = y + rg / 2; y += rg; }
+      }
+      return { ys: ys, tot: tot, ruleY: ruleY };
+    }
+    // sizes only ever shrink (no oscillation); a line may lose at most ~30 % of its
+    // nominal size to the curve, so the hierarchy (big number, small label) survives
+    function place(k) {
+      var sizes = ctr.map(function (c) { return k * c.wt; }), out;
+      for (var it = 0; it < 8; it++) {
+        out = stack(sizes);
+        var changed = false;
+        sizes = sizes.map(function (s, i) {
+          var e = Math.max(Math.abs(out.ys[i] - s * 0.42), Math.abs(out.ys[i] + s * 0.42));
+          var lim = chord(e) * 0.94 / (ctr[i].unit * 0.8);
+          if (lim < s - 0.01) { changed = true; return lim; }
+          return s;
+        });
+        if (!changed) break;
+      }
+      out = stack(sizes);
+      out.sizes = sizes;
+      out.ok = out.tot <= Bie * 2 * 0.92 && sizes.every(function (s, i) { return s >= 0.7 * k * ctr[i].wt; });
+      return out;
+    }
+    var lay = { sizes: [], ys: [], tot: 0, ruleY: 0 };
+    if (ctr.length) {
+      var lo = 0, hi = 300;
+      for (var it = 0; it < 30; it++) { var mid = (lo + hi) / 2; if (place(mid).ok) lo = mid; else hi = mid; }
+      // a lone line (e.g. just the city) would otherwise grow to fill the whole centre:
+      // keep it at the size it has next to the RC; the slider then scales the centre
+      // text (never beyond what fits)
+      var k = ctr.length === 1 ? Math.min(lo, Bi * 0.26) : lo;
+      lay = place(Math.min(lo, k * (st.ctrSize || 100) / 100));
+    }
+
+    return {
+      W: W, H: H, nominal: W - 2 * pad,                       // outer diameter (major axis for the oval)
+      drawVector: function (ctx, SS) {
+        ctx.setTransform(SS, 0, 0, SS, 0, 0);
+        ctx.lineWidth = t;
+        ctx.beginPath(); ctx.ellipse(cx, cy, A0, B0, 0, 0, TAU); ctx.stroke();
+        if (dbl) {
+          var o = t / 2 + g2 + t2 / 2;
+          ctx.lineWidth = t2;
+          ctx.beginPath(); ctx.ellipse(cx, cy, A0 - o, B0 - o, 0, 0, TAU); ctx.stroke();
+        }
+        if (st.innerRing) {
+          var oi = offO + band + ti / 2;
+          ctx.lineWidth = ti;
+          ctx.beginPath(); ctx.ellipse(cx, cy, A0 - oi, B0 - oi, 0, 0, TAU); ctx.stroke();
+        }
+        ctr.forEach(function (c, i) {
+          var s = lay.sizes[i], y = lay.ys[i];
+          var maxW = chord(Math.max(Math.abs(y - s * 0.42), Math.abs(y + s * 0.42))) * 0.94;
+          var L = makeLine(c.text, c.f, s * SS, 0, {});
+          if (L.w > maxW * SS) L = makeLine(c.text, c.f, s * SS, maxW * SS, {});
+          blit(ctx, L, cx * SS - L.w / 2, (cy + y) * SS);
+          if (i === ruleAt) {
+            var rl = Math.min(chord(lay.ruleY) * 0.62, Math.max(L.w / SS * 1.1, Aie * 0.5));
+            var lw = Math.max(1.5, t * 0.36);
+            ctx.setTransform(SS, 0, 0, SS, 0, 0);
+            ctx.fillRect(cx - rl / 2, cy + lay.ruleY - lw / 2, rl, lw);
+          }
+        });
+      },
+      warp: function (data, Wd, Hd, SS) {
+        if (!top && !bot) return;
+        var map = bandMap(Wd, Hd, cx * SS, cy * SS, At * SS, Bt * SS, (band / 2 + 1) * SS);
+        if (top) {
+          var LT = makeLine(top.text, top.f, top.px * SS, spanT * SS, { justify: true, arStretch: 0.3, track: 0.8 });
+          warpLine(data, map, LT, map.sOf(Math.PI * 1.5) - LT.w / 2, +1);
+        }
+        if (bot) {
+          var LB = makeLine(bot.text, bot.f, bot.px * SS, spanB * SS, { justify: true, arStretch: 0.3, track: 0.8 });
+          warpLine(data, map, LB, map.sOf(Math.PI * 0.5) + LB.w / 2, -1);
+        }
+      }
+    };
+  }
+
+  /* =====================================================================
+     Griffe — the manager's name stamp, as on the sample page: no frame,
+     plain type, the function (Gérant / المسير) centred above the name.
+     Both lines are free text: nothing is fixed.
+     ===================================================================== */
+  function griffeLines(st) {
+    var ar = st.gLang === "ar";
+    var title = ar ? st.gTitleAr : st.gTitleFr, name = ar ? st.gNameAr : st.gNameFr;
+    var L = [];
+    if (title) L.push({ text: title, rel: 0.8 });
+    if (name) L.push({ text: name, rel: 1 });
+    return L;
+  }
+  function layoutGriffe(st) {
+    var base = 64, pad = 18;
+    var prep = griffeLines(st).map(function (l) {
+      var f0 = fontFor(l.text, st), f = st.gBold ? f0 : regular(f0), px = base * l.rel;
+      return { text: l.text, f: f, px: px, w: metrics(l.text, f).unit * px, h: px * f.lh * 0.92 };
+    });
+    var maxW = prep.reduce(function (a, p) { return Math.max(a, p.w); }, 0) || 240;
+    var totH = prep.reduce(function (a, p) { return a + p.h; }, 0) || 80;
+    var W = Math.ceil(maxW + 2 * pad), H = Math.ceil(totH + 2 * pad), ys = [], y = pad;
+    prep.forEach(function (p) { ys.push(y + p.h / 2); y += p.h; });
+    return {
+      W: W, H: H, nominal: maxW,                             // width of the longest line
+      drawVector: function (ctx, SS) {
+        prep.forEach(function (p, i) {
+          var L = makeLine(p.text, p.f, p.px * SS, 0, {});
+          blit(ctx, L, (W / 2) * SS - L.w / 2, ys[i] * SS);
+        });
+      }
+    };
+  }
+
+  /* =====================================================================
+     Natural ink: soften, re-threshold with a ragged level (rough edges),
+     uneven pressure (soft blotches + one side harder), paper grain where
+     ink runs thin, slight mottling inside the strokes.
+     ===================================================================== */
+  function makeNoise(seed) {
+    var rnd = mulberry32(seed >>> 0), p = new Uint8Array(256), perm = new Uint8Array(512), val = new Float32Array(256);
+    for (var i = 0; i < 256; i++) p[i] = i;
+    for (i = 255; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), tmp = p[i]; p[i] = p[j]; p[j] = tmp; }
+    for (i = 0; i < 512; i++) perm[i] = p[i & 255];
+    for (i = 0; i < 256; i++) val[i] = rnd();
+    return function (x, y) {
+      var xf0 = Math.floor(x), yf0 = Math.floor(y), xf = x - xf0, yf = y - yf0;
+      var X = xf0 & 255, Y = yf0 & 255;
+      var u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+      var a = val[perm[perm[X] + Y]], b = val[perm[perm[X + 1] + Y]];
+      var c = val[perm[perm[X] + Y + 1]], d = val[perm[perm[X + 1] + Y + 1]];
+      return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    };
+  }
+  function boxBlur(src, W, H, r) {
+    if (r < 1) return src;
+    var tmp = new Float32Array(W * H), out = new Float32Array(W * H), inv = 1 / (2 * r + 1), x, y, o, acc;
+    for (y = 0; y < H; y++) {
+      o = y * W; acc = 0;
+      for (x = -r; x <= r; x++) acc += src[o + clamp(x, 0, W - 1)];
+      for (x = 0; x < W; x++) {
+        tmp[o + x] = acc * inv;
+        acc += src[o + Math.min(W - 1, x + r + 1)] - src[o + Math.max(0, x - r)];
+      }
+    }
+    for (x = 0; x < W; x++) {
+      acc = 0;
+      for (y = -r; y <= r; y++) acc += tmp[clamp(y, 0, H - 1) * W + x];
+      for (y = 0; y < H; y++) {
+        out[y * W + x] = acc * inv;
+        acc += tmp[Math.min(H - 1, y + r + 1) * W + x] - tmp[Math.max(0, y - r) * W + x];
+      }
+    }
+    return out;
+  }
+  // returns the bounding box of the ink, so the export can be cropped without a rescan
+  function applyInk(data, W, H, SS, st) {
+    var N = W * H, rgb = hexRGB(st.ink), R = rgb[0], G = rgb[1], B = rgb[2], i, j, x, y, a;
+    var bx0 = W, by0 = H, bx1 = -1, by1 = -1, first, last;
+    if (!st.natural) {
+      for (y = 0; y < H; y++) {
+        first = -1; last = -1;
+        for (x = 0; x < W; x++) {
+          j = (y * W + x) * 4; a = data[j + 3];
+          if (!a) continue;
+          data[j] = R; data[j + 1] = G; data[j + 2] = B; data[j + 3] = a * 0.973;
+          if (a > 6) { if (first < 0) first = x; last = x; }
+        }
+        if (first >= 0) { if (first < bx0) bx0 = first; if (last > bx1) bx1 = last; if (y < by0) by0 = y; by1 = y; }
+      }
+      return { x0: bx0, y0: by0, x1: bx1, y1: by1 };
+    }
+    var a0 = new Float32Array(N);
+    for (i = 0, j = 3; i < N; i++, j += 4) a0[i] = data[j] * (1 / 255);
+    var pr = st.pressure / 100, wr = st.wear / 100;
+    var rad = Math.max(1, Math.round(SS * (0.35 + 0.55 * pr)));
+    var a1 = boxBlur(boxBlur(a0, W, H, rad), W, H, Math.max(1, Math.round(rad * 0.6)));
+    var nA = makeNoise(st.seed), nB = makeNoise(st.seed * 31 + 7), nC = makeNoise(st.seed * 131 + 3);
+    var rnd = mulberry32((st.seed ^ 0x5bd1e995) >>> 0), ga = rnd() * TAU, gxd = Math.cos(ga), gyd = Math.sin(ga);
+    var Wl = W / SS, Hl = H / SS, diag = Math.sqrt(Wl * Wl + Hl * Hl);
+    var edgeAmp = 0.16 + 0.42 * wr, thr0 = 0.5 - (pr - 0.5) * 0.26;
+    var eLo = thr0 - edgeAmp / 2 - 0.09, eHi = thr0 + edgeAmp / 2 + 0.09;
+    var grainAmp = 0.3 + 0.55 * wr, blotAmp = 1.3 * wr, sideAmp = 1.05 * wr, base = 0.58 + 0.5 * pr;
+    var pin = 0.95 - 0.1 * wr - 0.05 * (1 - pr), halo = 0.1 + 0.16 * pr;
+    // slow fields (pressure blotches, ink film) vary over many pixels: sample them on a coarse grid
+    var GS = Math.max(2, Math.round(3 * SS)), gw = Math.ceil(W / GS) + 2, gh = Math.ceil(H / GS) + 2;
+    var gP = new Float32Array(gw * gh), gD = new Float32Array(gw * gh);
+    for (var q = 0; q < gh; q++) {
+      for (var p = 0; p < gw; p++) {
+        var uu = p * GS / SS, vv = q * GS / SS;
+        var big = nA(uu * 0.0075 + 37.7, vv * 0.0075 + 12.9) * 0.65 + nB(uu * 0.021 + 7.3, vv * 0.021 + 3.1) * 0.35;
+        var side = ((uu - Wl / 2) * gxd + (vv - Hl / 2) * gyd) / diag;
+        gP[q * gw + p] = base + (big - 0.5) * blotAmp + side * sideAmp;
+        gD[q * gw + p] = nB(uu * 0.11 + 2.2, vv * 0.11 + 8.8);
+      }
+    }
+    for (y = 0; y < H; y++) {
+      var v = (y + 0.5) / SS, gyf = y / GS, gy0 = Math.floor(gyf), ty = gyf - gy0, r0 = gy0 * gw, r1 = r0 + gw;
+      first = -1; last = -1;
+      for (x = 0; x < W; x++) {
+        i = y * W + x; j = i * 4;
+        var b = a1[i];
+        if (b < 0.02) { data[j + 3] = 0; continue; }
+        var u = (x + 0.5) / SS;
+        // ragged, fibrous edge: the softened shape is cut again at a noisy level
+        var e = 1, fringe = 0;
+        if (b < eHi) {
+          var en = nA(u * 0.55, v * 0.55) * 0.5 + nB(u * 1.6, v * 1.6) * 0.32 + nC(u * 3.9, v * 3.9) * 0.18;
+          var T = thr0 + (en - 0.5) * edgeAmp;
+          e = b <= eLo ? 0 : smooth(T - 0.09, T + 0.09, b);
+          // ink that crept into the paper around the strokes
+          fringe = smooth(0.04, 0.55, b) * halo * (0.4 + 1.2 * en);
+          if (e <= 0 && fringe < 0.02) { data[j + 3] = 0; continue; }
+        }
+        var gxf = x / GS, gx0 = Math.floor(gxf), tx = gxf - gx0;
+        var press = (gP[r0 + gx0] * (1 - tx) + gP[r0 + gx0 + 1] * tx) * (1 - ty) + (gP[r1 + gx0] * (1 - tx) + gP[r1 + gx0 + 1] * tx) * ty;
+        var film = (gD[r0 + gx0] * (1 - tx) + gD[r0 + gx0 + 1] * tx) * (1 - ty) + (gD[r1 + gx0] * (1 - tx) + gD[r1 + gx0 + 1] * tx) * ty;
+        // paper grain: where pressure is low the ink breaks up into speckle
+        var g = nB(u * 0.85 + 17.1, v * 0.85 + 4.4) * 0.55 + nA(u * 2.3 + 5.5, v * 2.3 + 9.9) * 0.45;
+        var cov = smooth(0.34, 0.66, press + (g - 0.5) * grainAmp);
+        // pinholes where the rubber did not pick up ink — mostly where pressure is low
+        var pt = pin + clamp(press - 0.85, -0.3, 0.3) * 0.22;
+        var hole = 1 - 0.8 * smooth(pt, pt + 0.05, nC(u * 1.15 + 9.1, v * 1.15 + 6.2));
+        // uneven ink film inside strokes, a little darker at the edges (ink pools there)
+        var dens = 0.8 + 0.12 * film + 0.08 * g;
+        dens += (1 - dens) * (1 - smooth(0.55, 0.98, b)) * 0.5;
+        a = Math.max(e * cov * hole * dens, fringe * cov) * 244;
+        data[j] = R; data[j + 1] = G; data[j + 2] = B; data[j + 3] = a;
+        if (a > 6) { if (first < 0) first = x; last = x; }
+      }
+      if (first >= 0) { if (first < bx0) bx0 = first; if (last > bx1) bx1 = last; if (y < by0) by0 = y; by1 = y; }
+    }
+    return { x0: bx0, y0: by0, x1: bx1, y1: by1 };
+  }
+
+  /* =====================================================================
+     Compose: layout → mask → ring text warp → ink → tilt
+     ===================================================================== */
+  function layoutOf(st) {
+    if (st.shape === "griffe") return layoutGriffe(st);
+    if (st.shape === "circle" || st.shape === "oval") return layoutRound(st, st.shape === "oval");
+    return layoutRect(st, st.shape === "free");
+  }
+  // returns a canvas; out.nominal (layout px) + out.ss let the page size it in millimetres
+  function compose(st, SS, lay) {
+    lay = lay || layoutOf(st);
+    var Wd = Math.round(lay.W * SS), Hd = Math.round(lay.H * SS);
+    var mk = document.createElement("canvas"); mk.width = Wd; mk.height = Hd;
+    var ctx = mk.getContext("2d", { willReadFrequently: true });
+    ctx.fillStyle = "#000"; ctx.strokeStyle = "#000";
+    lay.drawVector(ctx, SS);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    var img = ctx.getImageData(0, 0, Wd, Hd);
+    if (lay.warp) lay.warp(img.data, Wd, Hd, SS);
+    var bb = applyInk(img.data, Wd, Hd, SS, st);
+    ctx.putImageData(img, 0, 0);
+    // crop to the ink (+ a hair of margin) and apply the tilt around the stamp's centre
+    if (bb.x1 < 0) bb = { x0: 0, y0: 0, x1: Wd - 1, y1: Hd - 1 };
+    var m = Math.round(4 * SS);
+    var x0 = Math.max(0, bb.x0 - m), y0 = Math.max(0, bb.y0 - m);
+    var bw = Math.min(Wd, bb.x1 + 1 + m) - x0, bh = Math.min(Hd, bb.y1 + 1 + m) - y0;
+    var th = (st.tilt || 0) * Math.PI / 180;
+    var c = Math.abs(Math.cos(th)), s = Math.abs(Math.sin(th));
+    var OW = Math.ceil(bw * c + bh * s), OH = Math.ceil(bw * s + bh * c);
+    var out = document.createElement("canvas"); out.width = OW; out.height = OH;
+    var o = out.getContext("2d");
+    o.imageSmoothingEnabled = true; o.imageSmoothingQuality = "high";
+    o.translate(OW / 2, OH / 2); o.rotate(th);
+    o.drawImage(mk, x0, y0, bw, bh, -bw / 2, -bh / 2, bw, bh);
+    out.nominal = lay.nominal; out.ss = SS;
+    return out;
+  }
+
+  /* =====================================================================
+     State. Every stamp placed on the A4 page keeps its own settings and
+     position; the form on the left always edits the selected stamp.
+     ===================================================================== */
+  var cv = $("cv"), statusEl = $("status"), sheet = $("sheet"), stageEl = document.querySelector(".stage");
+  var IDS = ["namear", "name", "activity", "addr", "rc", "center", "badge", "actStyle", "order", "justify", "hscale",
+             "ringTop", "ringBot", "ctr_center", "ctr_rc", "ctr_addr", "ctr_namear", "ctr_name", "ctr_act", "innerRing",
+             "ctrRule", "frame", "thick", "rounded", "farab", "flat", "ink", "natural", "pressure", "wear", "tilt",
+             "gTitleFr", "gNameFr", "gTitleAr", "gNameAr", "gBold", "ctrOrder", "ctrSize", "citySize"];
+  var RADIOS = ["shape", "gLang"];
+  var NUM = { hscale: 1, thick: 1, pressure: 1, wear: 1, tilt: 1, ctrSize: 1, citySize: 1 };
+  var PAGE_W = 210, PAGE_H = 297;                  // A4, millimetres
+  var SIZE_DEF = { rect: 60, oval: 50, circle: 40, free: 60, griffe: 45 };   // usual real sizes, mm
+  var PAGE_SS = 1;                                 // resolution of the stamps drawn on the page preview
+  var PDF_PX_PER_MM = 500 / 25.4;                  // ≈ 500 dpi in the PDF
+  var seed = 7341;
+  var items = [], selId = 0, nextId = 1, tab = "stamp";
+
+  function radioVal(name, dflt) { var r = document.querySelector('input[name="' + name + '"]:checked'); return r ? r.value : dflt; }
+  function shapeVal() { return radioVal("shape", "rect"); }
+  function snapshot() {
+    var o = { shape: shapeVal(), gLang: radioVal("gLang", "fr"), seed: seed };
+    IDS.forEach(function (id) { var el = $(id); o[id] = el.type === "checkbox" ? el.checked : el.value; });
+    return o;
+  }
+  var defaults = snapshot();
+  function applySnapshot(o) {
+    if (!o) return;
+    RADIOS.forEach(function (n) {
+      if (o[n] == null) return;
+      var r = document.querySelector('input[name="' + n + '"][value="' + o[n] + '"]');
+      if (r) r.checked = true;
+    });
+    IDS.forEach(function (id) {
+      var v = id in o ? o[id] : defaults[id];       // older saves miss newer fields
+      if (v === undefined) return;
+      var el = $(id);
+      if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+    });
+    if (typeof o.seed === "number") seed = o.seed;
+  }
+  // settings object → render state (numbers parsed, text trimmed, missing keys from the defaults)
+  function stateOf(o) {
+    var st = {};
+    Object.keys(defaults).forEach(function (k) {
+      var v = k in o ? o[k] : defaults[k];
+      st[k] = NUM[k] ? parseFloat(v) : typeof v === "string" ? v.trim() : v;
+    });
+    return st;
+  }
+  function readState() { return stateOf(snapshot()); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function makeItem(snap, x, y) { return { id: nextId++, snap: snap, x: x, y: y, sizes: {}, el: null, key: "", dim: null }; }
+  function current() {
+    for (var i = 0; i < items.length; i++) if (items[i].id === selId) return items[i];
+    return items[0];
+  }
+  function sizeOf(it) { var sh = it.snap.shape; return it.sizes[sh] || SIZE_DEF[sh] || 50; }
+
+  var KEY = "cachet-generateur.v3", OLD_KEY = "cachet-generateur.v2";
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        tab: tab, sel: Math.max(0, items.indexOf(current())),
+        items: items.map(function (it) { return { snap: it.snap, x: it.x, y: it.y, sizes: it.sizes }; })
+      }));
+    } catch (e) { /* storage unavailable: fine */ }
+  }
+  function restore() {
+    var data = null, old = null;
+    try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* ignore */ }
+    if (data && data.items && data.items.length) {
+      items = data.items.map(function (d) {
+        var it = makeItem(d.snap || clone(defaults), isFinite(d.x) ? +d.x : 140, isFinite(d.y) ? +d.y : 100);
+        it.sizes = d.sizes || {};
+        return it;
+      });
+      selId = (items[data.sel] || items[0]).id;
+      tab = data.tab === "page" ? "page" : "stamp";
+    } else {
+      try { old = JSON.parse(localStorage.getItem(OLD_KEY) || "null"); } catch (e) { /* ignore */ }
+      items = [makeItem(old || clone(defaults), 140, 100)];
+      selId = items[0].id;
+    }
+    applySnapshot(current().snap);
+    current().snap = snapshot();       // fills in fields older versions did not have
+  }
+
+  /* =====================================================================
+     Interface
+     ===================================================================== */
+  function syncUI() {
+    var sh = shapeVal(), round = sh === "circle" || sh === "oval", gr = sh === "griffe";
+    var show = { rect: sh === "rect" || sh === "free", round: round, frame: sh === "rect" || round,
+                 rectonly: sh === "rect", griffe: gr, company: !gr };
+    document.querySelectorAll("[data-for]").forEach(function (el) { el.hidden = !show[el.dataset.for]; });
+    var lang = radioVal("gLang", "fr");
+    document.querySelectorAll("[data-lang]").forEach(function (el) { el.hidden = el.dataset.lang !== lang; });
+    // centre chips: an item already on the ring cannot be repeated in the middle
+    var used = {}, plan = ringPlan(readState());
+    ringKeys(plan.top).concat(ringKeys(plan.bot)).forEach(function (k) { used[k] = true; });
+    [["ctr_center", "center"], ["ctr_rc", "rc"], ["ctr_addr", "addr"], ["ctr_namear", "namear"], ["ctr_name", "name"], ["ctr_act", "activity"]]
+      .forEach(function (p) { $(p[0]).disabled = !!used[p[1]]; });
+    syncOrderList();
+    $("naturalRow").style.opacity = $("natural").checked ? "" : ".45";
+    $("tiltOut").textContent = (+$("tilt").value).toLocaleString("fr-FR") + "°";
+    $("hscaleOut").textContent = $("hscale").value + " %";
+    $("ctrSizeOut").textContent = $("ctrSize").value + " %";
+    $("citySizeOut").textContent = $("citySize").value + " %";
+    var ink = $("ink").value.toLowerCase();
+    document.querySelectorAll(".sw").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.ink === ink ? "true" : "false"); });
+    // the interface takes the ink colour as accent, unless that would make buttons unreadable
+    var c = hexRGB(ink), lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+    var dark = document.documentElement.dataset.theme === "dark" ||
+      (document.documentElement.dataset.theme !== "light" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+    if (!dark && lum < 0.5) document.documentElement.style.setProperty("--accent", ink);
+    else document.documentElement.style.removeProperty("--accent");
+    // tabs and page tools
+    $("tabStamp").setAttribute("aria-selected", tab === "stamp" ? "true" : "false");
+    $("tabPage").setAttribute("aria-selected", tab === "page" ? "true" : "false");
+    $("viewStamp").hidden = tab !== "stamp";
+    $("viewPage").hidden = tab !== "page";
+    $("pdf").hidden = tab !== "page";
+    $("dl").classList.toggle("ghost", tab === "page");
+    $("delItem").disabled = items.length < 2;
+    var it = current();
+    $("itemSize").value = sizeOf(it);
+    $("sizeOut").textContent = Math.round(sizeOf(it)) + " mm";
+    stageEl.classList.toggle("page-mode", tab === "page");
+    updateStageH();
+  }
+
+  // phones and small tablets use the single-column layout
+  function compact() { return window.matchMedia ? matchMedia("(max-width: 820px)").matches : window.innerWidth <= 820; }
+  // delay > 0 waits for a pause (typing on a phone stays fluid), otherwise next frame
+  var queued = false, waitT = 0;
+  function schedule(delay) {
+    clearTimeout(waitT);
+    if (delay > 0) { waitT = setTimeout(function () { schedule(0); }, delay); return; }
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; render(); });
+  }
+  function render() {
+    syncUI();
+    if (tab === "stamp") renderStamp(); else renderPage();
+  }
+  // the preview is drawn at the size it is shown (with a pixel budget on phones, whose
+  // processors are slower); downloads are always rendered at high resolution
+  function previewFit(lay) {
+    var paper = document.querySelector("#viewStamp .paper"), cs = getComputedStyle(paper);
+    var aw = paper.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var ah = paper.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    var small = compact(), short = window.matchMedia && matchMedia("(max-height: 560px) and (min-width: 821px)").matches;
+    var scale = Math.min(1, Math.max(120, aw) / lay.W);
+    if ((small || short) && ah > 20) scale = Math.min(scale, ah / lay.H);
+    var budget = small ? 700000 : 2600000;
+    var SS = clamp(Math.min(scale * (window.devicePixelRatio || 1) * 1.1, Math.sqrt(budget / (lay.W * lay.H))), 1, SS_VIEW);
+    return { SS: SS, scale: scale };
+  }
+  function renderStamp() {
+    var st = readState(), lay = layoutOf(st), fit = previewFit(lay), out;
+    try { out = compose(st, fit.SS, lay); }
+    catch (err) { flash("Erreur de rendu : " + err.message); return; }
+    cv.width = out.width; cv.height = out.height;
+    cv.style.width = Math.max(1, Math.round(out.width / fit.SS * fit.scale)) + "px";
+    cv.getContext("2d").drawImage(out, 0, 0);
+  }
+
+  /* ---- the A4 page ---- */
+  function renderPage() {
+    Array.prototype.slice.call(sheet.querySelectorAll(".item")).forEach(function (el) {
+      if (!items.some(function (it) { return it.el === el; })) el.remove();
+    });
+    items.forEach(function (it, i) {
+      if (!it.el) {
+        var el = document.createElement("canvas");
+        el.className = "item"; el.tabIndex = 0;
+        el.addEventListener("pointerdown", function (e) { startDrag(e, it); });
+        el.addEventListener("contextmenu", function (e) { e.preventDefault(); });   // no long-press menu on phones
+        el.addEventListener("keydown", function (e) { nudge(e, it); });
+        el.addEventListener("focus", function () { if (selId !== it.id) select(it.id); });
+        sheet.appendChild(el);
+        it.el = el;
+      }
+      var key = JSON.stringify(it.snap);
+      if (it.key !== key) {
+        var out;
+        try { out = compose(stateOf(it.snap), PAGE_SS); }
+        catch (err) { flash("Erreur de rendu : " + err.message); return; }
+        it.el.width = out.width; it.el.height = out.height;
+        it.el.getContext("2d").drawImage(out, 0, 0);
+        it.dim = { w: out.width / out.ss, h: out.height / out.ss, nominal: out.nominal };
+        it.key = key;
+      }
+      it.el.setAttribute("aria-label", (it.snap.shape === "griffe" ? "Griffe " : "Cachet ") + (i + 1) +
+        " — glisser ou flèches pour déplacer");
+      it.el.classList.toggle("sel", it.id === selId);
+      place(it);
+    });
+    showPos();
+  }
+  function mmBox(it) { var k = sizeOf(it) / it.dim.nominal; return { w: it.dim.w * k, h: it.dim.h * k }; }
+  function place(it) {
+    if (!it.el || !it.dim) return;
+    var b = mmBox(it);
+    it.el.style.width = (b.w / PAGE_W * 100) + "%";
+    it.el.style.left = ((it.x - b.w / 2) / PAGE_W * 100) + "%";
+    it.el.style.top = ((it.y - b.h / 2) / PAGE_H * 100) + "%";
+  }
+  function showPos() {
+    var it = current();
+    $("posOut").textContent = "Centre : " + Math.round(it.x) + " mm du bord gauche, " + Math.round(it.y) +
+      " mm du haut · glisser ou flèches (Maj = 5 mm)";
+  }
+  function startDrag(e, it) {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    if (selId !== it.id) select(it.id);
+    it.el.focus({ preventScroll: true });
+    var k = PAGE_W / sheet.clientWidth, sx = e.clientX, sy = e.clientY, ox = it.x, oy = it.y, el = it.el;
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety */ }
+    function move(ev) {
+      it.x = clamp(ox + (ev.clientX - sx) * k, 0, PAGE_W);
+      it.y = clamp(oy + (ev.clientY - sy) * k, 0, PAGE_H);
+      place(it); showPos();
+    }
+    function up() {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      save();
+    }
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  }
+  function nudge(e, it) {
+    var d = e.shiftKey ? 5 : 1, dx = 0, dy = 0;
+    if (e.key === "ArrowLeft") dx = -d; else if (e.key === "ArrowRight") dx = d;
+    else if (e.key === "ArrowUp") dy = -d; else if (e.key === "ArrowDown") dy = d;
+    else return;
+    e.preventDefault();
+    it.x = clamp(it.x + dx, 0, PAGE_W); it.y = clamp(it.y + dy, 0, PAGE_H);
+    place(it); showPos(); save();
+  }
+  function select(id) {
+    selId = id;
+    applySnapshot(current().snap);
+    save(); schedule();
+  }
+  function setTab(t) { tab = t; save(); schedule(); }
+
+  /* ---- events ---- */
+  function onForm(e) {
+    var snap = snapshot(), it = current();
+    if (e && JSON.stringify(snap) === JSON.stringify(it.snap)) return;   // e.g. "change" right after "input"
+    it.snap = snap; save(); loadFonts();
+    var typing = !!(e && e.target && e.target.type === "text");
+    schedule(compact() ? (typing ? 260 : 40) : (typing ? 70 : 0));
+  }
+  // phones: while a text field is focused (keyboard open), the sticky area keeps only the stamp
+  var editT = 0;
+  function isText(el) { return !!(el && el.matches && el.matches('input[type="text"]')); }
+  $("ctl").addEventListener("focusin", function (e) {
+    if (!isText(e.target)) return;
+    clearTimeout(editT);
+    if (!document.body.classList.contains("editing")) { document.body.classList.add("editing"); if (compact()) schedule(320); }
+  });
+  $("ctl").addEventListener("focusout", function () {
+    clearTimeout(editT);
+    editT = setTimeout(function () {
+      if (isText(document.activeElement) || !document.body.classList.contains("editing")) return;
+      document.body.classList.remove("editing");
+      if (compact()) schedule(120);
+    }, 150);
+  });
+  $("ctl").addEventListener("input", onForm);
+  $("ctl").addEventListener("change", onForm);
+  $("swatches").addEventListener("click", function (e) {
+    var b = e.target.closest(".sw");
+    if (!b) return;
+    $("ink").value = b.dataset.ink; onForm();
+  });
+  $("reroll").addEventListener("click", function () { seed = (Math.random() * 1e9) >>> 0; onForm(); });
+  function syncOrderList() {
+    var list = $("ctrList"), order = ctrOrderOf($("ctrOrder").value);
+    var now = Array.prototype.map.call(list.children, function (li) { return li.dataset.k; }).join(",");
+    if (now !== order.join(",")) order.forEach(function (k) { list.appendChild(list.querySelector('li[data-k="' + k + '"]')); });
+    for (var i = 0, lis = list.children; i < lis.length; i++) {
+      lis[i].querySelector('[data-d="-1"]').disabled = i === 0;
+      lis[i].querySelector('[data-d="1"]').disabled = i === lis.length - 1;
+    }
+  }
+  $("ctrList").addEventListener("click", function (e) {
+    var b = e.target.closest(".mv");
+    if (!b || b.disabled) return;
+    var k = b.closest("li").dataset.k, order = ctrOrderOf($("ctrOrder").value);
+    var i = order.indexOf(k), j = i + Number(b.dataset.d);
+    if (j < 0 || j >= order.length) return;
+    order.splice(i, 1); order.splice(j, 0, k);
+    $("ctrOrder").value = order.join(",");
+    syncOrderList();
+    var target = b.disabled ? b.parentNode.querySelector(".mv:not(:disabled)") : b;
+    if (target) target.focus();
+    onForm();
+  });
+  $("tabStamp").addEventListener("click", function () { setTab("stamp"); });
+  $("tabPage").addEventListener("click", function () {
+    setTab("page");
+    var stage = document.querySelector(".stage");
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        // phones / landscape: the column scrolls with the page, so open the sheet at the top;
+        // desktop: the column sticks, so just make sure the PDF button is on screen
+        if (getComputedStyle(stage).position !== "sticky") stage.scrollIntoView({ block: "start", behavior: "smooth" });
+        else $("pdf").scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    });
+  });
+  $("itemSize").addEventListener("input", function () {
+    var it = current();
+    it.sizes[it.snap.shape] = +this.value;
+    $("sizeOut").textContent = this.value + " mm";
+    place(it); save();
+  });
+  $("addItem").addEventListener("click", function () {
+    var base = current(), snap = clone(base.snap);
+    snap.seed = (Math.random() * 1e9) >>> 0;               // a second impression never looks identical
+    var it = makeItem(snap, clamp(base.x - 40, 25, PAGE_W - 25), clamp(base.y + 45, 20, PAGE_H - 20));
+    it.sizes = clone(base.sizes);
+    items.push(it);
+    select(it.id);
+    flash("Cachet ajouté : modifie-le à gauche (par ex. choisis « Griffe ») puis glisse-le à sa place.");
+  });
+  $("delItem").addEventListener("click", function () {
+    if (items.length < 2) return;
+    var it = current();
+    items = items.filter(function (x) { return x !== it; });
+    select(items[items.length - 1].id);
+  });
+  document.querySelector(".nudge").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    var it = current();
+    it.x = clamp(it.x + Number(b.dataset.nx || 0), 0, PAGE_W);
+    it.y = clamp(it.y + Number(b.dataset.ny || 0), 0, PAGE_H);
+    place(it); showPos(); save();
+  });
+  function resetAll() {
+    if (!window.confirm("Réinitialiser tous les réglages et vider la page A4 ?")) return;
+    items = [makeItem(clone(defaults), 140, 100)];
+    selId = items[0].id;
+    applySnapshot(defaults);
+    try { localStorage.removeItem(KEY); localStorage.removeItem(OLD_KEY); } catch (e) { /* ignore */ }
+    schedule(); flash("Réglages par défaut rétablis.");
+  }
+  $("reset").addEventListener("click", resetAll);
+  $("reset2").addEventListener("click", resetAll);
+  // on phones the stamp area is sticky: tell the browser its height so a focused field is
+  // always scrolled into view below it, not under it
+  function updateStageH() {
+    var sticky = compact() && getComputedStyle(stageEl).position === "sticky";
+    document.documentElement.style.setProperty("--stageH", sticky ? stageEl.offsetHeight + "px" : "0px");
+  }
+  if (window.ResizeObserver) new ResizeObserver(updateStageH).observe(stageEl);
+  var resizeT;
+  window.addEventListener("resize", function () { clearTimeout(resizeT); resizeT = setTimeout(schedule, 160); updateStageH(); });
+
+  /* =====================================================================
+     Export: PNG / clipboard (selected stamp) and the A4 page as PDF
+     ===================================================================== */
+  var downloads = null;
+  if (window.claude && window.claude.use) {
+    window.claude.use("downloads").then(function (d) { downloads = d; }).catch(function () {});
+  }
+  function slug(s) {
+    return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 40);
+  }
+  function baseName(st) {
+    return st.shape === "griffe" ? "griffe-" + (slug(st.gLang === "ar" ? "" : st.gNameFr) || "gerant")
+                                 : "cachet-" + (slug(st.name || st.center) || "client");
+  }
+  function blobToDataURL(blob, cb) { var fr = new FileReader(); fr.onload = function () { cb(fr.result); }; fr.readAsDataURL(blob); }
+  function saveBlob(blob, name, label) {
+    if (downloads && downloads.save) {
+      blobToDataURL(blob, function (dataUrl) {
+        downloads.save({ filename: name, data: dataUrl })
+          .then(function () { flash(label + " enregistré."); })
+          .catch(function () { flash("Enregistrement annulé."); });
+      });
+      return;
+    }
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    flash(label + " téléchargé : " + name);
+  }
+  function exportBlob(cb) {
+    flash("Préparation de l'image haute résolution…", true);
+    setTimeout(function () {
+      var out = compose(readState(), SS_EXPORT);
+      out.toBlob(function (blob) { cb(blob); }, "image/png");
+    }, 30);
+  }
+  $("dl").addEventListener("click", function () {
+    var name = baseName(readState()) + ".png";
+    exportBlob(function (blob) { saveBlob(blob, name, "PNG"); });
+  });
+  $("copy").addEventListener("click", function () {
+    if (!navigator.clipboard || !window.ClipboardItem) { flash("Copie non disponible ici — utilise Télécharger."); return; }
+    exportBlob(function (blob) {
+      navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+        .then(function () { flash("Image copiée dans le presse-papiers."); })
+        .catch(function () { flash("Copie refusée — utilise Télécharger."); });
+    });
+  });
+  var canShareFiles = false;
+  try {
+    canShareFiles = !!(navigator.share && navigator.canShare &&
+      navigator.canShare({ files: [new File(["x"], "x.png", { type: "image/png" })] }));
+  } catch (e) { canShareFiles = false; }
+  $("share").hidden = !canShareFiles;
+  function shareBlob(blob, name) {
+    var file = new File([blob], name, { type: blob.type });
+    navigator.share({ files: [file], title: name })
+      .then(function () { flash("Partagé."); })
+      .catch(function (err) { flash(err && err.name === "AbortError" ? "Partage annulé." : "Partage impossible ici — utilise Télécharger."); });
+  }
+  $("share").addEventListener("click", function () {
+    if (tab === "page") {
+      flash("Préparation du PDF…", true);
+      setTimeout(function () {
+        pagePDF()
+          .then(function (blob) { shareBlob(blob, "page-" + baseName(stateOf(items[0].snap)) + ".pdf"); })
+          .catch(function (err) { flash("Erreur pendant la création du PDF : " + err.message); });
+      }, 30);
+    } else {
+      var name = baseName(readState()) + ".png";
+      exportBlob(function (blob) { shareBlob(blob, name); });
+    }
+  });
+  $("pdf").addEventListener("click", function () {
+    flash("Préparation du PDF…", true);
+    setTimeout(function () {
+      pagePDF()
+        .then(function (blob) { saveBlob(blob, "page-" + baseName(stateOf(items[0].snap)) + ".pdf", "PDF"); })
+        .catch(function (err) { flash("Erreur pendant la création du PDF : " + err.message); });
+    }, 30);
+  });
+
+  // every stamp is rendered at ≈ 500 dpi for its size on the page, then placed in millimetres
+  function pagePDF() {
+    var imgs = items.map(function (it) {
+      var st = stateOf(it.snap), lay = layoutOf(st), size = sizeOf(it);
+      var SS = clamp(PDF_PX_PER_MM * size / lay.nominal, 1.2, 3);
+      var out = compose(st, SS, lay), k = size / lay.nominal;
+      return { canvas: out, rgb: hexRGB(st.ink), w: out.width / SS * k, h: out.height / SS * k, x: it.x, y: it.y };
+    });
+    return makePDF(imgs);
+  }
+  function deflate(u8) {
+    if (typeof CompressionStream === "undefined") return Promise.resolve(null);
+    try {
+      var s = new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate"));
+      return new Response(s).arrayBuffer().then(function (b) { return new Uint8Array(b); }, function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+  // A minimal PDF 1.4 writer: one A4 page, each stamp an RGB image (the ink colour)
+  // with its own soft mask (the ink density), so the stamps stay transparent.
+  function makePDF(imgs) {
+    var K = 72 / 25.4, enc = new TextEncoder();
+    var jobs = imgs.map(function (im) {
+      var W = im.canvas.width, H = im.canvas.height;
+      var d = im.canvas.getContext("2d").getImageData(0, 0, W, H).data;
+      var rgb = new Uint8Array(W * H * 3), a = new Uint8Array(W * H);
+      for (var p = 0, q = 0, r = 0; p < W * H; p++, q += 4, r += 3) {
+        rgb[r] = im.rgb[0]; rgb[r + 1] = im.rgb[1]; rgb[r + 2] = im.rgb[2]; a[p] = d[q + 3];
+      }
+      return Promise.all([deflate(rgb), deflate(a)]).then(function (z) {
+        return { im: im, W: W, H: H, rgb: z[0] || rgb, rgbZ: !!z[0], a: z[1] || a, aZ: !!z[1] };
+      });
+    });
+    return Promise.all(jobs).then(function (P) {
+      var parts = [], pos = 0, offs = [];
+      function put(x) { var b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); pos += b.length; }
+      function obj(n, dict, stream) {
+        offs[n] = pos;
+        put(n + " 0 obj\n" + dict + "\n");
+        if (stream) { put("stream\n"); put(stream); put("\nendstream\n"); }
+        put("endobj\n");
+      }
+      function f(v) { return String(Math.round(v * 1000) / 1000); }
+      var first = 5, info = first + P.length * 2;
+      put("%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n");
+      obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+      obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+      var xo = P.map(function (_, i) { return "/Im" + (i + 1) + " " + (first + 2 * i) + " 0 R"; }).join(" ");
+      obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + f(PAGE_W * K) + " " + f(PAGE_H * K) + "]" +
+             " /Resources << /XObject << " + xo + " >> >> /Contents 4 0 R >>");
+      var content = enc.encode(P.map(function (p, i) {
+        var im = p.im;
+        return "q " + f(im.w * K) + " 0 0 " + f(im.h * K) + " " + f((im.x - im.w / 2) * K) + " " +
+               f((PAGE_H - im.y - im.h / 2) * K) + " cm /Im" + (i + 1) + " Do Q";
+      }).join("\n"));
+      obj(4, "<< /Length " + content.length + " >>", content);
+      P.forEach(function (p, i) {
+        var n = first + 2 * i, img = " /Width " + p.W + " /Height " + p.H + " /BitsPerComponent 8";
+        obj(n, "<< /Type /XObject /Subtype /Image" + img + " /ColorSpace /DeviceRGB" + (p.rgbZ ? " /Filter /FlateDecode" : "") +
+               " /SMask " + (n + 1) + " 0 R /Length " + p.rgb.length + " >>", p.rgb);
+        obj(n + 1, "<< /Type /XObject /Subtype /Image" + img + " /ColorSpace /DeviceGray" + (p.aZ ? " /Filter /FlateDecode" : "") +
+                   " /Length " + p.a.length + " >>", p.a);
+      });
+      obj(info, "<< /Title (Cachets - page A4) /Producer (Generateur de cachets) >>");
+      var xref = pos, n = info + 1, s = "xref\n0 " + n + "\n0000000000 65535 f \n";
+      for (var k = 1; k < n; k++) s += String(offs[k]).padStart(10, "0") + " 00000 n \n";
+      put(s + "trailer\n<< /Size " + n + " /Root 1 0 R /Info " + info + " 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+      return new Blob(parts, { type: "application/pdf" });
+    });
+  }
+
+  var baseNote = statusEl.textContent, flashT;
+  function flash(msg, sticky) {
+    statusEl.textContent = msg; statusEl.classList.add("show"); clearTimeout(flashT);
+    if (!sticky) flashT = setTimeout(function () { statusEl.textContent = baseNote; statusEl.classList.remove("show"); }, 3200);
+  }
+
+  /* ---- fonts: canvas only uses a web font once it is loaded. Load the faces in
+     use (Arabic and Latin subsets, bold and regular), others when they are chosen —
+     lighter on mobile data — and redraw when they arrive ---- */
+  var fontsAsked = {};
+  function loadFonts() {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var jobs = [];
+    items.map(function (it) { return it.snap; }).concat([snapshot()]).forEach(function (o) {
+      var st = stateOf(o);
+      [["ar", st.farab], ["lat", st.flat]].forEach(function (pair) {
+        var key = pair[0] + ":" + pair[1], f = pair[0] === "ar" ? AR_FONTS[pair[1]] : LAT_FONTS[pair[1]];
+        if (!f || fontsAsked[key]) return;
+        fontsAsked[key] = true;
+        var sample = pair[0] === "ar" ? "ش.ذ.م.م للإستيـراد المسير 0123 N°" : "SARL R.C N° 0123 Gérant é";
+        [f.w, f.wr].forEach(function (w) { jobs.push(document.fonts.load(w + " 40px " + f.load, sample).catch(function () {})); });
+      });
+    });
+    return Promise.all(jobs);
+  }
+  function fontsArrived() { mcache.clear(); items.forEach(function (it) { it.key = ""; }); schedule(); }
+  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", fontsArrived);
+
+  restore();
+  render();
+  loadFonts().then(fontsArrived);
+})();
+</script>
+</body>
+</html>
